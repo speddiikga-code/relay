@@ -1,17 +1,27 @@
-name: Cloud agents (Claude Code ultracode + Codex)
+name: Cloud agents (Claude Code ultracode + Codex + Gemini CLI)
 
-# Runs the real Claude Code CLI with ultracode on and OpenAI Codex on the same
-# task in parallel, then has Claude merge both answers. Every result is posted
-# as a comment on the task's issue.
+# Runs real coding agents on the same task in parallel, then has Claude merge
+# every answer. Each result is posted as a comment on the task's issue.
+#
+#   - Claude Code CLI with the ultracode setting on (Anthropic API, or AWS Bedrock)
+#   - OpenAI Codex (openai/codex-action)
+#   - Google Gemini CLI (google-github-actions/run-gemini-cli)
+#
+# Each agent runs only if its secret is set, so connect as many as you like.
 #
 # Start a run: open an issue with the "agent-run" label (the Relay site's
 # "Send task to cloud agents" button does this), or run this workflow by hand
 # from the Actions tab. Only the repository owner can start a run, because every
 # run spends the owner's API credit.
 #
-# Required repository secrets: ANTHROPIC_API_KEY, OPENAI_API_KEY
-# Optional repository variables: CLAUDE_MODEL (default claude-opus-5),
-#                                CODEX_MODEL (default gpt-6-astra)
+# Repository secrets (any subset):
+#   ANTHROPIC_API_KEY         Claude Code + the merge step
+#   AWS_BEARER_TOKEN_BEDROCK  Claude Code through AWS Bedrock (used when ANTHROPIC_API_KEY is absent)
+#   OPENAI_API_KEY            Codex
+#   GEMINI_API_KEY            Gemini CLI
+# Optional repository variables:
+#   CLAUDE_MODEL (claude-opus-5), CODEX_MODEL (gpt-6-astra), GEMINI_MODEL (gemini-3.8-flash),
+#   AWS_REGION (us-east-1), BEDROCK_CLAUDE_MODEL (us.anthropic.claude-opus-5)
 #
 # Untrusted text (the task) only ever reaches scripts through env vars, never
 # through ${{ }} interpolation inside run: blocks.
@@ -22,7 +32,7 @@ on:
   workflow_dispatch:
     inputs:
       task:
-        description: Task for both agents
+        description: Task for the agents
         required: true
         type: string
 
@@ -33,6 +43,9 @@ env:
   TASK: ${{ github.event.issue.body || github.event.issue.title || inputs.task }}
   CLAUDE_MODEL: ${{ vars.CLAUDE_MODEL || 'claude-opus-5' }}
   CODEX_MODEL: ${{ vars.CODEX_MODEL || 'gpt-6-astra' }}
+  GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-3.8-flash' }}
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  BEDROCK_CLAUDE_MODEL: ${{ vars.BEDROCK_CLAUDE_MODEL || 'us.anthropic.claude-opus-5' }}
   UNATTENDED: >-
     You are running unattended in a CI job and nobody can answer questions.
     Make reasonable assumptions, state them briefly, and put the complete
@@ -49,15 +62,31 @@ jobs:
       issues: write
     outputs:
       issue: ${{ steps.start.outputs.issue }}
+      claude: ${{ steps.start.outputs.claude }}
+      codex: ${{ steps.start.outputs.codex }}
+      gemini: ${{ steps.start.outputs.gemini }}
     steps:
       - id: start
         uses: actions/github-script@v7
         env:
           HAS_ANTHROPIC: ${{ secrets.ANTHROPIC_API_KEY != '' }}
+          HAS_BEDROCK: ${{ secrets.AWS_BEARER_TOKEN_BEDROCK != '' }}
           HAS_OPENAI: ${{ secrets.OPENAI_API_KEY != '' }}
+          HAS_GEMINI: ${{ secrets.GEMINI_API_KEY != '' }}
         with:
           script: |
             const { owner, repo } = context.repo;
+            const has = k => process.env[k] === 'true';
+            const claude = has('HAS_ANTHROPIC') || has('HAS_BEDROCK');
+            const agents = [
+              claude && `**Claude Code (ultracode${has('HAS_ANTHROPIC') ? '' : ', via AWS Bedrock'})**`,
+              has('HAS_OPENAI') && '**OpenAI Codex**',
+              has('HAS_GEMINI') && '**Gemini CLI**',
+            ].filter(Boolean);
+            core.setOutput('claude', String(claude));
+            core.setOutput('codex', String(has('HAS_OPENAI')));
+            core.setOutput('gemini', String(has('HAS_GEMINI')));
+
             let issue = context.payload.issue && context.payload.issue.number;
             if (!issue) {
               const title = 'Cloud run: ' + process.env.TASK.replace(/\s+/g, ' ').slice(0, 70);
@@ -65,18 +94,23 @@ jobs:
             }
             core.setOutput('issue', String(issue));
             const run = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
-            const missing = [
-              process.env.HAS_ANTHROPIC !== 'true' && 'ANTHROPIC_API_KEY',
-              process.env.HAS_OPENAI !== 'true' && 'OPENAI_API_KEY',
-            ].filter(Boolean);
-            let body = `🚀 **Claude Code (ultracode)** and **Codex** are working on this in parallel; Claude merges both answers at the end. [Watch the run](${run})`;
-            if (missing.length) {
-              body += `\n\n⚠️ Missing repository secret(s): **${missing.join(', ')}**. Add them under Settings → Secrets and variables → Actions, then open a new issue.`;
+            let body;
+            if (!agents.length) {
+              body = `⚠️ No agent can run: add at least one repository secret (ANTHROPIC_API_KEY, AWS_BEARER_TOKEN_BEDROCK, OPENAI_API_KEY or GEMINI_API_KEY) under Settings → Secrets and variables → Actions, then open a new issue.`;
+            } else {
+              body = `🚀 Working in parallel: ${agents.join(', ')}.${claude ? ' Claude merges every answer at the end.' : ''} [Watch the run](${run})`;
+              const off = [
+                !claude && 'Claude Code (ANTHROPIC_API_KEY or AWS_BEARER_TOKEN_BEDROCK)',
+                !has('HAS_OPENAI') && 'Codex (OPENAI_API_KEY)',
+                !has('HAS_GEMINI') && 'Gemini CLI (GEMINI_API_KEY)',
+              ].filter(Boolean);
+              if (off.length) body += `\n\n<sub>Not connected: ${off.join(' · ')}. Add the secret to include it.</sub>`;
             }
             await github.rest.issues.createComment({ owner, repo, issue_number: Number(issue), body });
 
   claude:
     needs: start
+    if: needs.start.outputs.claude == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -94,13 +128,21 @@ jobs:
       - name: Claude Code with ultracode on
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AWS_BEARER_TOKEN_BEDROCK: ${{ secrets.AWS_BEARER_TOKEN_BEDROCK }}
         run: |
           set +e
+          if [ -z "$ANTHROPIC_API_KEY" ] && [ -n "$AWS_BEARER_TOKEN_BEDROCK" ]; then
+            export CLAUDE_CODE_USE_BEDROCK=1
+            export MODEL="$BEDROCK_CLAUDE_MODEL" VIA="AWS Bedrock"
+          else
+            unset AWS_BEARER_TOKEN_BEDROCK
+            export MODEL="$CLAUDE_MODEL" VIA="Anthropic API"
+          fi
           claude --version
           # ultracode = xhigh effort + dynamic workflows. In -p mode the Workflow
           # tool must be allowed explicitly or the workflow launch is denied.
           claude -p "$TASK" \
-            --model "$CLAUDE_MODEL" \
+            --model "$MODEL" \
             --settings '{"ultracode": true, "workflowSizeGuideline": "medium"}' \
             --allowedTools "Workflow,Agent,Read,Glob,Grep,WebSearch,WebFetch,TodoWrite" \
             --append-system-prompt "$UNATTENDED" \
@@ -109,9 +151,9 @@ jobs:
           code=$?
           if jq -e .result claude.json > /dev/null 2>&1; then
             jq -r '.result' claude.json > claude.md
-            jq -r '"\n\n---\n<sub>Claude Code · \(env.CLAUDE_MODEL) · ultracode · \(.num_turns // "?") turns · $\((.total_cost_usd // 0) * 100 | round / 100) · \((.duration_ms // 0) / 60000 | floor) min</sub>"' claude.json >> claude.md
+            jq -r '"\n\n---\n<sub>Claude Code · \(env.MODEL) via \(env.VIA) · ultracode · \(.num_turns // "?") turns · $\((.total_cost_usd // 0) * 100 | round / 100) · \((.duration_ms // 0) / 60000 | floor) min</sub>"' claude.json >> claude.md
           else
-            { echo "Claude Code failed (exit $code)."; echo; echo '```'; tail -c 3000 claude.err; tail -c 2000 claude.json; echo '```'; } > claude.md
+            { echo "Claude Code failed (exit $code, via $VIA)."; echo; echo '```'; tail -c 3000 claude.err; tail -c 2000 claude.json; echo '```'; } > claude.md
           fi
       - name: Post Claude Code result
         if: always()
@@ -134,6 +176,7 @@ jobs:
 
   codex:
     needs: start
+    if: needs.start.outputs.codex == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -182,16 +225,60 @@ jobs:
             if (!text) text = 'Codex produced no output (check the OPENAI_API_KEY secret, model access and credit). Open the run for details.';
             else text += `\n\n---\n<sub>OpenAI Codex · ${process.env.CODEX_MODEL} · effort ${process.env.EFFORT}</sub>`;
             if (text.length > 60000) text = text.slice(0, 60000) + '\n\n…(truncated; the full text is in the run artifacts)';
+            fs.writeFileSync('codex.md', text);
             await github.rest.issues.createComment({ ...context.repo, issue_number: Number(process.env.ISSUE), body: '## 🟢 OpenAI Codex\n\n' + text });
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: codex
-          path: ${{ runner.temp }}/codex.md
+          path: codex.md
+          if-no-files-found: ignore
+
+  gemini:
+    needs: start
+    if: needs.start.outputs.gemini == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - id: gemini
+        name: Gemini CLI
+        continue-on-error: true
+        uses: google-github-actions/run-gemini-cli@v0.1.22
+        with:
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          gemini_model: ${{ env.GEMINI_MODEL }}
+          prompt: ${{ format('{0} {1}', env.UNATTENDED, env.TASK) }}
+      - name: Post Gemini result
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          ISSUE: ${{ needs.start.outputs.issue }}
+          SUMMARY: ${{ steps.gemini.outputs.summary }}
+          ERR: ${{ steps.gemini.outputs.error }}
+        with:
+          script: |
+            const fs = require('fs');
+            let text = (process.env.SUMMARY || '').trim();
+            if (!text) text = 'Gemini CLI produced no output' + (process.env.ERR ? ':\n\n```\n' + process.env.ERR.slice(-3000) + '\n```' : ' (check the GEMINI_API_KEY secret and model access). Open the run for details.');
+            else text += `\n\n---\n<sub>Google Gemini CLI · ${process.env.GEMINI_MODEL}</sub>`;
+            if (text.length > 60000) text = text.slice(0, 60000) + '\n\n…(truncated)';
+            fs.writeFileSync('gemini.md', text);
+            await github.rest.issues.createComment({ ...context.repo, issue_number: Number(process.env.ISSUE), body: '## 🔵 Google Gemini CLI\n\n' + text });
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gemini
+          path: gemini.md
           if-no-files-found: ignore
 
   merge:
-    needs: [start, claude, codex]
+    needs: [start, claude, codex, gemini]
     if: always() && needs.start.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -200,43 +287,65 @@ jobs:
       issues: write
     steps:
       - uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           path: results
       - uses: actions/setup-node@v4
+        if: needs.start.outputs.claude == 'true'
         with:
           node-version: 22
       - name: Install Claude Code
+        if: needs.start.outputs.claude == 'true'
         run: npm install -g @anthropic-ai/claude-code
-      - name: Merge both answers
+      - name: Merge every answer
+        if: needs.start.outputs.claude == 'true'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AWS_BEARER_TOKEN_BEDROCK: ${{ secrets.AWS_BEARER_TOKEN_BEDROCK }}
         run: |
           set +e
+          if [ -z "$ANTHROPIC_API_KEY" ] && [ -n "$AWS_BEARER_TOKEN_BEDROCK" ]; then
+            export CLAUDE_CODE_USE_BEDROCK=1; MODEL="$BEDROCK_CLAUDE_MODEL"
+          else
+            unset AWS_BEARER_TOKEN_BEDROCK; MODEL="$CLAUDE_MODEL"
+          fi
           {
             printf 'Task:\n%s\n\n' "$TASK"
-            printf '## Answer A: Claude Code (ultracode)\n\n'
-            cat results/claude/claude.md 2>/dev/null || echo '(no result)'
-            printf '\n\n## Answer B: OpenAI Codex\n\n'
-            cat results/codex/codex.md 2>/dev/null || echo '(no result)'
-            printf '\n\nCompare the two answers. Where they disagree, decide which is right and why. '
-            printf 'Start with at most five bullets on what each got right or wrong, then write the single best final answer to the task, combining the strengths of both.\n'
+            n=0
+            for f in claude codex gemini; do
+              if [ -s "results/$f/$f.md" ]; then
+                n=$((n+1))
+                case $f in claude) name='Claude Code (ultracode)';; codex) name='OpenAI Codex';; gemini) name='Google Gemini CLI';; esac
+                printf '\n\n## Answer from %s\n\n' "$name"
+                cat "results/$f/$f.md"
+              fi
+            done
+            printf '\n\nCompare the answers above. Where they disagree, decide which is right and why. '
+            printf 'Start with at most five bullets on what each got right or wrong, then write the single best final answer to the task, combining their strengths.\n'
           } > merge-prompt.md
           # Prompt goes in on stdin: a single command-line argument is capped at 128 KB on Linux.
-          claude -p --model "$CLAUDE_MODEL" --effort high --max-turns 3 --output-format json < merge-prompt.md > merge.json 2> merge.err
+          claude -p --model "$MODEL" --effort high --max-turns 3 --output-format json < merge-prompt.md > merge.json 2> merge.err
           code=$?
           if jq -e .result merge.json > /dev/null 2>&1; then
             jq -r '.result' merge.json > merge.md
           else
             { echo "The merge step failed (exit $code)."; echo; echo '```'; tail -c 3000 merge.err; echo '```'; } > merge.md
           fi
-      - name: Post merged answer
+      - name: Post merged answer and mark the run done
         if: always()
         uses: actions/github-script@v7
         env:
           ISSUE: ${{ needs.start.outputs.issue }}
+          HAS_CLAUDE: ${{ needs.start.outputs.claude }}
         with:
           script: |
             const fs = require('fs');
-            let text = fs.existsSync('merge.md') ? fs.readFileSync('merge.md', 'utf8') : 'The merge step produced no output.';
-            if (text.length > 60000) text = text.slice(0, 60000) + '\n\n…(truncated)';
-            await github.rest.issues.createComment({ ...context.repo, issue_number: Number(process.env.ISSUE), body: '## ✅ Final answer (Claude merged both)\n\n' + text });
+            const issue_number = Number(process.env.ISSUE);
+            if (process.env.HAS_CLAUDE === 'true') {
+              let text = fs.existsSync('merge.md') ? fs.readFileSync('merge.md', 'utf8') : 'The merge step produced no output.';
+              if (text.length > 60000) text = text.slice(0, 60000) + '\n\n…(truncated)';
+              await github.rest.issues.createComment({ ...context.repo, issue_number, body: '## ✅ Final answer (Claude merged every answer)\n\n' + text });
+            } else {
+              await github.rest.issues.createComment({ ...context.repo, issue_number, body: '✅ Done. (No merge: add ANTHROPIC_API_KEY or AWS_BEARER_TOKEN_BEDROCK to have Claude merge the answers.)' });
+            }
+            await github.rest.issues.addLabels({ ...context.repo, issue_number, labels: ['agent-done'] });

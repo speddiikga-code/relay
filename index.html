@@ -5,26 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https:; object-src 'none'; base-uri 'none'">
 <meta name="referrer" content="no-referrer">
-<title>Relay · Claude × GPT</title>
-<meta name="description" content="Run real multi-agent prompt pipelines across Claude and GPT, straight from your browser. Bring your own API keys.">
+<title>Relay · Multi-AI</title>
+<meta name="description" content="Run real multi-agent prompt pipelines across Claude, GPT, Gemini, AWS Bedrock and any OpenAI-compatible API, straight from your browser. Results to KakaoTalk. Bring your own API keys.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231c1b19'/%3E%3Cpath d='M8 12h14l-3.5-3.5M24 20H10l3.5 3.5' stroke='%23fff' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="styles.css?v=3">
+<link rel="stylesheet" href="styles.css?v=4">
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js" defer></script>
-<script src="engine.js?v=3" defer></script>
-<script src="providers.js?v=3" defer></script>
-<script src="app.js?v=3" defer></script>
+<script src="engine.js?v=4" defer></script>
+<script src="providers.js?v=4" defer></script>
+<script src="app.js?v=4" defer></script>
 </head>
 <body>
 <header class="topbar">
   <div class="brand">
     <span class="logo" aria-hidden="true">⇄</span>
     <span class="brand-name">Relay</span>
-    <span class="brand-sub">Claude × GPT orchestration</span>
+    <span class="brand-sub">Claude · GPT · Gemini · AWS orchestration</span>
   </div>
   <nav class="top-actions" aria-label="Status and settings">
-    <span class="pill v-anthropic" id="pill-anthropic" title="Anthropic key status"><i></i>Claude</span>
-    <span class="pill v-openai" id="pill-openai" title="OpenAI key status"><i></i>GPT</span>
+    <span class="pills" id="pills" aria-label="Connected providers"></span>
     <label class="switch" title="Demo mode simulates every call: no keys, no cost">
       <input type="checkbox" id="demo-toggle" aria-label="Demo mode"><span>Demo</span>
     </label>
@@ -80,7 +79,7 @@
         <h2 id="cloud-title">☁ Claude Code ultracode + Codex</h2>
         <span class="tag" id="cloud-repo-tag"></span>
       </div>
-      <p class="hint">Sends your task to the real <b>Claude Code with ultracode on</b> and <b>OpenAI Codex</b>, running in GitHub Actions. They work in parallel, then Claude merges both answers. Results arrive as comments on a GitHub issue, usually within 5–20 minutes. Runs are billed to the API keys saved as repository secrets, and only the repo owner can start one.</p>
+      <p class="hint">Sends your task to the real <b>Claude Code with ultracode on</b> (Anthropic API or AWS Bedrock), <b>OpenAI Codex</b> and <b>Google Gemini CLI</b>, running in GitHub Actions. They work in parallel, then Claude merges every answer. Results arrive as comments on a GitHub issue, usually within 5–20 minutes. Runs are billed to the API keys saved as repository secrets, and only the repo owner can start one.</p>
       <div class="row wrap">
         <button type="button" class="btn primary small" id="cloud-send">Send task to cloud agents</button>
         <a class="btn small ghost" id="cloud-runs-link" target="_blank" rel="noopener">All runs ↗</a>
@@ -107,6 +106,7 @@
           <button type="button" class="btn small ghost" id="copy-final">Copy</button>
           <button type="button" class="btn small ghost" id="dl-final">Download .md</button>
           <button type="button" class="btn small ghost" id="raw-final" aria-pressed="false">Raw</button>
+          <button type="button" class="btn small ghost" id="kakao-final" title="Send this result to your own KakaoTalk chat">KakaoTalk</button>
         </div>
       </div>
       <div id="final-body" class="md"></div>
@@ -114,9 +114,9 @@
     <div id="timeline" class="timeline"></div>
 
     <div id="empty" class="empty">
-      <h1>Run one prompt through Claude and GPT together.</h1>
+      <h1>Run one prompt through Claude, GPT, Gemini and AWS together.</h1>
       <ol class="steps">
-        <li><b>Add keys.</b> Paste your Anthropic and OpenAI API keys in <em>Settings</em>. They stay in this browser and go only to the vendors' APIs. No keys yet? Leave <em>Demo</em> on to see the flow.</li>
+        <li><b>Add keys.</b> Paste any of your API keys (Claude, GPT, Gemini, AWS Bedrock, or Any API such as OpenRouter) in <em>Settings</em>. Connect KakaoTalk there too. They stay in this browser and go only to the vendors' APIs. No keys yet? Leave <em>Demo</em> on to see the flow.</li>
         <li><b>Describe the task.</b> Start it with <code>ultracode:</code> if you want everything thrown at it.</li>
         <li><b>Press ⚡ Kickstart.</b> Relay picks the cheapest orchestration that fits and runs it. Every agent streams live, each stage feeds the next, and you see tokens and estimated cost as they happen.</li>
       </ol>
@@ -126,6 +126,7 @@
         <div><b>Relay</b><span>draft → cross-vendor attack → revise</span></div>
         <div><b>Debate</b><span>answer → cross-examine → judge</span></div>
         <div><b>Fan-out</b><span>plan → workers → refute → synthesize</span></div>
+        <div><b>Council</b><span>every connected AI answers, a judge merges</span></div>
         <div><b>Ultra</b><span>both vendors at every step</span></div>
       </div>
     </div>
@@ -143,7 +144,7 @@
   </div>
   <div class="dialog-body">
     <fieldset>
-      <legend>API keys</legend>
+      <legend>Anthropic &amp; OpenAI</legend>
       <div class="field">
         <label for="key-anthropic">Anthropic API key</label>
         <div class="row"><input id="key-anthropic" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-…"><button type="button" class="btn small" id="load-anthropic">Test &amp; load models</button></div>
@@ -167,6 +168,73 @@
       </div>
       <datalist id="dl-anthropic"><option value="claude-opus-5"><option value="claude-fable-5-1"><option value="claude-sonnet-5"><option value="claude-haiku-4-5"></datalist>
       <datalist id="dl-openai"><option value="gpt-6-astra"><option value="gpt-5.6-sol"><option value="gpt-5.6-terra"><option value="gpt-5.6-luna"></datalist>
+    </fieldset>
+
+    <fieldset>
+      <legend>Google Gemini</legend>
+      <div class="field">
+        <label for="key-gemini">Gemini API key · <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">get one ↗</a></label>
+        <div class="row"><input id="key-gemini" type="password" autocomplete="off" spellcheck="false" placeholder="AIza…"><button type="button" class="btn small" id="load-gemini">Test &amp; load models</button></div>
+        <span class="hint" id="st-gemini"></span>
+      </div>
+      <div class="field"><label for="m-gemini">Gemini model</label><input id="m-gemini" list="dl-gemini" spellcheck="false"></div>
+      <datalist id="dl-gemini"><option value="gemini-3.8-flash"><option value="gemini-3.1-pro-preview"><option value="gemini-3.7-flash"><option value="gemini-3.5-flash-lite"></datalist>
+    </fieldset>
+
+    <fieldset>
+      <legend>Amazon Bedrock (AWS)</legend>
+      <div class="field">
+        <label for="key-bedrock">Bedrock API key · <a href="https://console.aws.amazon.com/bedrock/home#/api-keys" target="_blank" rel="noopener">create one ↗</a></label>
+        <div class="row"><input id="key-bedrock" type="password" autocomplete="off" spellcheck="false" placeholder="Bedrock API key"><button type="button" class="btn small" id="load-bedrock">Test &amp; load models</button></div>
+        <span class="hint" id="st-bedrock"></span>
+      </div>
+      <div class="grid2">
+        <div class="field"><label for="bedrock-region">Region</label><input id="bedrock-region" list="dl-regions" spellcheck="false"></div>
+        <div class="field"><label for="m-bedrock">Bedrock model</label><input id="m-bedrock" list="dl-bedrock" spellcheck="false"></div>
+      </div>
+      <datalist id="dl-regions"><option value="us-east-1"><option value="us-west-2"><option value="ap-northeast-2"><option value="ap-northeast-1"><option value="eu-central-1"><option value="eu-west-1"><option value="ap-southeast-2"></datalist>
+      <datalist id="dl-bedrock"><option value="us.anthropic.claude-opus-5"><option value="global.anthropic.claude-opus-5"><option value="apac.anthropic.claude-opus-5"></datalist>
+    </fieldset>
+
+    <fieldset>
+      <legend>Any API (OpenAI-compatible)</legend>
+      <div class="grid2">
+        <div class="field"><label for="compat-provider">Service</label>
+          <select id="compat-provider">
+            <option value="openrouter">OpenRouter (hundreds of models)</option>
+            <option value="groq">Groq</option>
+            <option value="mistral">Mistral</option>
+            <option value="deepseek">DeepSeek</option>
+            <option value="xai">xAI (Grok)</option>
+            <option value="together">Together AI</option>
+            <option value="custom">Custom URL</option>
+          </select>
+        </div>
+        <div class="field"><label for="compat-base">Base URL</label><input id="compat-base" spellcheck="false"></div>
+      </div>
+      <div class="field">
+        <label for="key-compat">API key</label>
+        <div class="row"><input id="key-compat" type="password" autocomplete="off" spellcheck="false" placeholder="API key for that service"><button type="button" class="btn small" id="load-compat">Test &amp; load models</button></div>
+        <span class="hint" id="st-compat"></span>
+      </div>
+      <div class="field"><label for="m-compat">Model</label><input id="m-compat" list="dl-compat" spellcheck="false" placeholder="pick one after Test &amp; load models"></div>
+      <datalist id="dl-compat"></datalist>
+    </fieldset>
+
+    <fieldset>
+      <legend>KakaoTalk</legend>
+      <p class="hint">Get a KakaoTalk message ("send to me") when a run finishes, or send any result with one click. One-time setup at <a href="https://developers.kakao.com/console/app" target="_blank" rel="noopener">developers.kakao.com</a>: create an app → <b>Platform → Web</b>: add site domain <code id="kakao-domain"></code> → <b>Kakao Login</b>: turn it on and add Redirect URI <code id="kakao-redirect"></code> → <b>Consent items</b>: enable "Send message in KakaoTalk" (<code>talk_message</code>). Then paste the app's REST API key here and press Connect.</p>
+      <div class="grid2">
+        <div class="field"><label for="kakao-rest">REST API key</label><input id="kakao-rest" type="password" autocomplete="off" spellcheck="false"></div>
+        <div class="field"><label for="kakao-secret">Client secret (only if enabled)</label><input id="kakao-secret" type="password" autocomplete="off" spellcheck="false"></div>
+      </div>
+      <div class="row wrap">
+        <button type="button" class="btn small" id="kakao-connect">Connect KakaoTalk</button>
+        <button type="button" class="btn small ghost" id="kakao-test">Send test message</button>
+        <button type="button" class="btn small ghost" id="kakao-disconnect">Disconnect</button>
+      </div>
+      <span class="hint" id="st-kakao"></span>
+      <label class="check"><input type="checkbox" id="kakao-notify"> Message me on KakaoTalk when a run finishes</label>
     </fieldset>
 
     <fieldset>

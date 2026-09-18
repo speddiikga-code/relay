@@ -11,7 +11,13 @@
     'claude-fast': { vendor: 'anthropic', label: 'Claude · fast', setting: 'modelClaudeFast' },
     gpt:           { vendor: 'openai',    label: 'GPT',           setting: 'modelGpt' },
     'gpt-fast':    { vendor: 'openai',    label: 'GPT · fast',    setting: 'modelGptFast' },
+    gemini:        { vendor: 'gemini',    label: 'Gemini',        setting: 'modelGemini' },
+    bedrock:       { vendor: 'bedrock',   label: 'AWS Bedrock',   setting: 'modelBedrock' },
+    any:           { vendor: 'compat',    label: 'Any API',       setting: 'modelCompat' },
   };
+  // One "main" slot per provider, in the order Council and substitution prefer them.
+  const MAIN_SLOTS = ['claude', 'gpt', 'gemini', 'bedrock', 'any'];
+  const ALL = '@all'; // pseudo-slot: every connected provider
   const SWAP = { claude: 'gpt', gpt: 'claude', 'claude-fast': 'gpt-fast', 'gpt-fast': 'claude-fast' };
   const EFFORTS = ['default', 'low', 'medium', 'high', 'xhigh', 'max'];
   const TYPES = {
@@ -33,6 +39,7 @@
     'gpt-5.6-sol': [5, 30],
     'gpt-5.6-terra': [2, 12],
     'gpt-5.6-luna': [0.2, 1.2],
+    'gemini-3.5-flash': [1.5, 9],
   };
 
   function stage(title, type, models, prompt, extra) {
@@ -152,6 +159,21 @@ You are the final judge. Produce the single best answer to the task. Where the m
         stage('Synthesize', 'agent', ['claude'], SYNTH),
       ],
     },
+    council: {
+      name: 'Council',
+      blurb: 'Every connected AI (Claude, GPT, Gemini, AWS, Any API) answers at once, then a judge merges them.',
+      build: () => [
+        stage('Every model answers', 'parallel', [ALL], '{{task}}'),
+        stage('Judge', 'agent', ['claude'],
+`Task:
+{{task}}
+
+Independent answers from different AI models:
+{{s1}}
+
+You are the judge. Where the answers agree, that is likely right; where they disagree, decide who is right and say why in one line each. Then write the single best final answer to the task.`),
+      ],
+    },
     ultra: {
       name: 'Ultra',
       blurb: 'Both vendors at every step: plan → workers → two refuters → synthesize → attack → fix.',
@@ -183,6 +205,7 @@ You are the final judge. Produce the single best answer to the task. Where the m
     const scaleHits = [...t.matchAll(new RegExp(`\\b(\\d{1,5})\\s*\\+?\\s*(?:[\\w-]+\\s)?[\\w-]*?(?:${NOUNS})\\b`, 'g'))];
     const scale = scaleHits.length ? Math.max(...scaleHits.map(m => +m[1])) : null;
     const ultra = ULTRA_PREFIX.test(t) || /\b(ultra(code)?|max(imum)? (effort|quality)|most thorough|best possible|no matter (the )?cost)\b/.test(t);
+    const council = /\b(all (the )?(models|ais|apis|providers|clouds)|every (model|ai|provider|cloud)|council|consensus|ask everyone|gemini and|and gemini)\b/.test(t);
     const fanWords = /\b(every|each|all (the |of the )?|across the (whole|entire)|sweep|in bulk|batch|for each)\b/.test(t);
     const fanNouns = new RegExp(`(${NOUNS})\\b`).test(t);
     const risky = /\b(prod|production|live (data|db|database)|migrat\w*|drop table|delete|payments?|billing|auth\w*|credentials?|secrets?|security|deploy\w*|infra\w*|terraform|kubernetes|money|legal|medical|compliance)\b/.test(t);
@@ -196,6 +219,9 @@ You are the final judge. Produce the single best answer to the task. Where the m
       reasons.push('You asked for maximum orchestration: Claude and GPT at every step, each checking the other');
       warnings.push('Ultra is the most expensive rung: about (subtasks + 7) agent calls at xhigh effort.');
       r = { kind: 'ultra', preset: 'ultra', effort: 'xhigh' };
+    } else if (council) {
+      reasons.push('You asked for every model: all connected providers answer in parallel, then a judge merges them');
+      r = { kind: 'council', preset: 'council', effort: 'high' };
     } else if ((fanWords && (fanNouns || (scale && scale >= 4))) || (scale && scale >= 8)) {
       reasons.push('Fan-out shape: many items treated the same way');
       r = { kind: 'fan-out', preset: 'fanout', effort: 'xhigh' };
@@ -278,6 +304,8 @@ You are the final judge. Produce the single best answer to the task. Where the m
 
   function priceFor(model, prices) {
     if (!model || !prices) return null;
+    // Bedrock IDs like "us.anthropic.claude-opus-5" price like "claude-opus-5".
+    model = model.replace(/^((us|eu|apac|jp|au|global|us-gov)\.)?anthropic\./, '').replace(/-v\d+:\d+$/, '');
     if (prices[model]) return prices[model];
     const key = Object.keys(prices).filter(p => model.startsWith(p)).sort((x, y) => y.length - x.length)[0];
     return key ? prices[key] : null;
@@ -293,11 +321,12 @@ You are the final judge. Produce the single best answer to the task. Where the m
     return (inTok * pin + usage.output * pout) / 1e6;
   }
 
-  function estimateCalls(stages, maxItems) {
+  function estimateCalls(stages, maxItems, allCount) {
     let min = 0, max = 0;
+    const width = models => models.reduce((n, m) => n + (m === ALL ? (allCount || 1) : 1), 0);
     for (const s of stages) {
       if (s.type === 'agent') { min += 1; max += 1; }
-      else if (s.type === 'parallel') { min += s.models.length; max += s.models.length; }
+      else if (s.type === 'parallel') { min += width(s.models); max += width(s.models); }
       else if (s.type === 'map') { min += 1; max += maxItems; }
     }
     return { min, max };
@@ -330,18 +359,23 @@ You are the final judge. Produce the single best answer to the task. Where the m
       const effort = settings.effortOverride && settings.effortOverride !== 'stage' ? settings.effortOverride : st.effort;
       const system = render(st.system, vars());
       try {
+        // Expand "@all" and stand in connected providers for unconnected ones.
+        const resolved = settings.resolveModels ? settings.resolveModels(st.models, st.type) : { models: st.models, notes: [] };
+        resolved.notes.forEach(n => sv.note(n));
+        const models = resolved.models;
+        if (!models.length) throw new Error('No AI provider is connected for this stage. Add a key in Settings, or turn on Demo.');
         let out;
         if (st.type === 'agent') {
-          const slot = st.models[0];
+          const slot = models[0];
           const r = await guarded(slot, system, render(st.prompt, vars()), effort, sv.addPane(slot));
           out = r.text;
         } else if (st.type === 'parallel') {
           const prompt = render(st.prompt, vars());
-          const panes = st.models.map(m => sv.addPane(m));
-          const res = await Promise.allSettled(st.models.map((m, j) => guarded(m, system, prompt, effort, panes[j])));
+          const panes = models.map(m => sv.addPane(m));
+          const res = await Promise.allSettled(models.map((m, j) => guarded(m, system, prompt, effort, panes[j])));
           const aborted = res.find(r => r.status === 'rejected' && isAbort(r.reason));
           if (aborted) throw aborted.reason;
-          const ok = res.map((r, j) => (r.status === 'fulfilled' ? `### ${SLOTS[st.models[j]].label}\n\n${r.value.text}` : null)).filter(Boolean);
+          const ok = res.map((r, j) => (r.status === 'fulfilled' ? `### ${SLOTS[models[j]].label}\n\n${r.value.text}` : null)).filter(Boolean);
           if (!ok.length) throw res[0].reason;
           if (ok.length < res.length) sv.note(`${res.length - ok.length} of ${res.length} models failed; continuing with the rest.`);
           out = ok.join('\n\n---\n\n');
@@ -353,7 +387,7 @@ You are the final judge. Produce the single best answer to the task. Where the m
             sv.note(`Source produced ${items.length} items; capped at ${settings.maxItems} (Settings → Max fan-out items).`);
             items = items.slice(0, settings.maxItems);
           }
-          const slotFor = j => st.models[j % st.models.length];
+          const slotFor = j => models[j % models.length];
           const panes = items.map((it, j) => sv.addPane(slotFor(j), `${j + 1}. ${it}`));
           const res = await pool(items, settings.concurrency, (it, j) =>
             guarded(slotFor(j), system, render(st.prompt, vars({ item: it, index: j + 1, count: items.length })), effort, panes[j])
@@ -381,7 +415,7 @@ You are the final judge. Produce the single best answer to the task. Where the m
   }
 
   window.Engine = {
-    SLOTS, SWAP, EFFORTS, TYPES, PRESETS, DEFAULT_PRICES,
+    SLOTS, MAIN_SLOTS, ALL, SWAP, EFFORTS, TYPES, PRESETS, DEFAULT_PRICES,
     stage, route, cleanTask, render, oneLine, extractItems, pool, isAbort, abortError, cost, estimateCalls, runPipeline,
   };
 })();

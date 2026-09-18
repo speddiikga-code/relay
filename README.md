@@ -1,6 +1,32 @@
-# Relay: Claude × GPT orchestration
+# Relay: multi-AI orchestration
 
-A static website that runs real multi-agent prompt pipelines across **Claude (Anthropic API)** and **GPT (OpenAI API)** from your browser. It has no backend and no build step, and it hosts on GitHub Pages as is.
+A static website that runs real multi-agent prompt pipelines across **Claude**, **GPT**, **Google Gemini**, **Amazon Bedrock (AWS)**, and **any OpenAI-compatible API** (OpenRouter, Groq, Mistral, DeepSeek, xAI, Together…), straight from your browser. It can send results to your **KakaoTalk**. It has no backend and no build step, and it hosts on GitHub Pages as is.
+
+**Live:** https://speddiikga-code.github.io/relay/
+
+## Connected providers
+
+| Provider | API used from the browser | Key |
+|---|---|---|
+| Claude | Anthropic Messages API (streaming) | Anthropic API key |
+| GPT | OpenAI Responses API (streaming) | OpenAI API key |
+| Google Gemini | Gemini API `streamGenerateContent` | Gemini API key ([AI Studio](https://aistudio.google.com/apikey)) |
+| Amazon Bedrock | Bedrock Converse API, any region | Bedrock API key ([console](https://console.aws.amazon.com/bedrock/home#/api-keys)) |
+| Any API | OpenAI-compatible Chat Completions (streaming) | That service's key |
+| KakaoTalk | Kakao Login + "send to me" (`talk_message`) | Kakao app REST API key |
+
+Every one of these APIs was checked to accept direct browser calls (CORS), including on error responses. OpenAI's errors are the exception: Relay recovers them through the model-list endpoint.
+
+**Connect any subset.** If a pipeline asks for a provider you haven't connected, a connected one stands in automatically, and the stage says so. **Council** sends the task to every connected provider at once, then a judge merges the answers.
+
+### KakaoTalk setup (one time)
+
+1. Go to [developers.kakao.com](https://developers.kakao.com/console/app) and create an app.
+2. Under **Platform → Web**, add the site domain `https://speddiikga-code.github.io`.
+3. Under **Kakao Login**, turn it on and add the Redirect URI `https://speddiikga-code.github.io/relay/`.
+4. Under **Consent items**, enable "Send message in KakaoTalk" (`talk_message`).
+5. In Relay, open **Settings → KakaoTalk**, paste the app's REST API key (plus the client secret if you enabled one), and press **Connect KakaoTalk**.
+6. Turn on "Message me on KakaoTalk when a run finishes". Every final result also gets a **KakaoTalk** button.
 
 ## What it does
 
@@ -20,17 +46,26 @@ A static website that runs real multi-agent prompt pipelines across **Claude (An
 - **Demo mode**: simulates every call so you can try the flow without keys.
 - **History** of past runs, kept in your browser only.
 
-## Cloud agents: real Claude Code (ultracode) + OpenAI Codex
+## Cloud agents: real Claude Code (ultracode) + Codex + Gemini CLI
 
-The **☁ Claude Code ultracode + Codex** panel sends your task to [`.github/workflows/cloud-agents.yml`](.github/workflows/cloud-agents.yml), which runs in GitHub Actions:
+The **☁ Claude Code ultracode + Codex** panel sends your task to [`.github/workflows/cloud-agents.yml`](.github/workflows/cloud-agents.yml), which runs in GitHub Actions. These agents run in parallel:
 
-1. **Claude Code** (the real CLI) runs your task with the `ultracode` setting on: xhigh effort plus dynamic multi-agent workflows.
-2. **OpenAI Codex** (`openai/codex-action`) runs the same task at xhigh effort, in parallel. If the model rejects xhigh, it retries at high.
-3. **Claude merges** both answers: what each got right or wrong, then the single best final answer.
+1. **Claude Code** (the real CLI) runs your task with the `ultracode` setting on: xhigh effort plus dynamic multi-agent workflows. It uses the Anthropic API, or **AWS Bedrock** when only a Bedrock key is set.
+2. **OpenAI Codex** (`openai/codex-action`) runs the same task at xhigh effort. If the model rejects xhigh, it retries at high.
+3. **Google Gemini CLI** (`google-github-actions/run-gemini-cli`) runs the same task.
 
-Each step posts a comment on the task's GitHub issue. The panel lists recent runs.
+Then **Claude merges** every answer: what each got right or wrong, then the single best final answer. Each step posts a comment on the task's GitHub issue, and the issue gets the `agent-done` label when finished. The panel lists recent runs.
 
-**One-time setup:** in the repo, go to **Settings → Secrets and variables → Actions** and add two repository secrets, `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`. Optional repository variables `CLAUDE_MODEL` and `CODEX_MODEL` override the defaults (`claude-opus-5`, `gpt-6-astra`).
+**One-time setup:** in the repo, go to **Settings → Secrets and variables → Actions** and add any of these repository secrets. Each agent runs only if its secret exists:
+
+| Secret | Enables |
+|---|---|
+| `ANTHROPIC_API_KEY` | Claude Code and the merge step |
+| `AWS_BEARER_TOKEN_BEDROCK` | Claude Code through AWS Bedrock, used when there's no Anthropic key |
+| `OPENAI_API_KEY` | Codex |
+| `GEMINI_API_KEY` | Gemini CLI |
+
+Optional repository variables override the defaults: `CLAUDE_MODEL` (`claude-opus-5`), `CODEX_MODEL` (`gpt-6-astra`), `GEMINI_MODEL` (`gemini-3.8-flash`), `AWS_REGION` (`us-east-1`) and `BEDROCK_CLAUDE_MODEL` (`us.anthropic.claude-opus-5`).
 
 **Who can start a run:** only the repository owner, because every run spends the owner's API credit. Issues opened by anyone else are ignored.
 
