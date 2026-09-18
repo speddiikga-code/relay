@@ -20,6 +20,24 @@ A static website that runs real multi-agent prompt pipelines across **Claude (An
 - **Demo mode**: simulates every call so you can try the flow without keys.
 - **History** of past runs, kept in your browser only.
 
+## Cloud agents: real Claude Code (ultracode) + OpenAI Codex
+
+The **☁ Claude Code ultracode + Codex** panel sends your task to [`.github/workflows/cloud-agents.yml`](.github/workflows/cloud-agents.yml), which runs in GitHub Actions:
+
+1. **Claude Code** (the real CLI) runs your task with the `ultracode` setting on: xhigh effort plus dynamic multi-agent workflows.
+2. **OpenAI Codex** (`openai/codex-action`) runs the same task at xhigh effort, in parallel. If the model rejects xhigh, it retries at high.
+3. **Claude merges** both answers: what each got right or wrong, then the single best final answer.
+
+Each step posts a comment on the task's GitHub issue. The panel lists recent runs.
+
+**One-time setup:** in the repo, go to **Settings → Secrets and variables → Actions** and add two repository secrets, `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`. Optional repository variables `CLAUDE_MODEL` and `CODEX_MODEL` override the defaults (`claude-opus-5`, `gpt-6-astra`).
+
+**Who can start a run:** only the repository owner, because every run spends the owner's API credit. Issues opened by anyone else are ignored.
+
+**Why not the `ultracode:` keyword?** Claude Code honors the keyword only from input a person types, never from `-p` runs, webhooks or issue text. That's a deliberate safety boundary. The workflow turns ultracode on through the documented setting (`--settings '{"ultracode": true}'`) and explicitly allows the `Workflow` tool, which non-interactive runs require.
+
+**Agents are read-only:** they can read this repo and the web, and they answer in comments. They don't push code.
+
 ## Deploy to GitHub Pages (about 2 minutes, no git needed)
 
 1. On github.com, click **New repository**. Name it (for example `relay`), make it **Public**, and create it.

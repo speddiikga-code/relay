@@ -15,7 +15,17 @@
     del(k, s) { try { (s || LS).removeItem(k); } catch (_) { /* ignore */ } },
   };
 
+  // On <owner>.github.io/<repo>/ the site's own repo is the natural cloud-agents repo.
+  function detectRepo() {
+    const m = location.hostname.match(/^([a-z0-9-]+)\.github\.io$/i);
+    if (!m) return '';
+    const seg = location.pathname.split('/').filter(Boolean)[0];
+    return m[1] + '/' + (seg && !/\.html?$/i.test(seg) ? seg : `${m[1]}.github.io`);
+  }
+  const validRepo = r => /^[\w.-]+\/[\w.-]+$/.test(r || '');
+
   const DEFAULT_SETTINGS = {
+    cloudRepo: detectRepo(),
     modelClaude: 'claude-opus-5',
     modelClaudeFast: 'claude-sonnet-5',
     modelGpt: 'gpt-6-astra',
@@ -559,6 +569,7 @@
     'max-calls': () => settings.maxCalls, 'max-items': () => settings.maxItems,
     concurrency: () => settings.concurrency, 'max-tokens': () => settings.maxTokens,
     'base-anthropic': () => settings.anthropicBase, 'base-openai': () => settings.openaiBase,
+    'cloud-repo': () => settings.cloudRepo,
   };
 
   function openSettings() {
@@ -589,6 +600,8 @@
     settings.maxTokens = clampInt($('#max-tokens').value, 256, 128000, DEFAULT_SETTINGS.maxTokens);
     settings.anthropicBase = $('#base-anthropic').value.trim() || DEFAULT_SETTINGS.anthropicBase;
     settings.openaiBase = $('#base-openai').value.trim() || DEFAULT_SETTINGS.openaiBase;
+    const repo = $('#cloud-repo').value.trim().replace(/^https?:\/\/github\.com\//i, '').replace(/\/+$/, '');
+    settings.cloudRepo = validRepo(repo) ? repo : (repo ? settings.cloudRepo : '');
     settings.remember = $('#remember').checked;
     settings.showThinking = $('#show-thinking').checked;
     settings.fallbacks = $('#fallbacks').checked;
@@ -622,9 +635,70 @@
     }
   }
 
+  // ---------- Cloud agents (Claude Code ultracode + Codex in GitHub Actions) ----------
+  function renderCloud() {
+    const repo = settings.cloudRepo;
+    const ok = validRepo(repo);
+    $('#cloud-repo-tag').textContent = ok ? repo : 'repository not set';
+    $('#cloud-runs-link').href = ok ? `https://github.com/${repo}/issues?q=label%3Aagent-run` : '#';
+    $('#cloud-setup-link').href = ok ? `https://github.com/${repo}/settings/secrets/actions` : '#';
+  }
+
+  function ago(iso) {
+    const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+    if (s < 90) return 'just now';
+    if (s < 5400) return Math.round(s / 60) + ' min ago';
+    if (s < 129600) return Math.round(s / 3600) + ' h ago';
+    return Math.round(s / 86400) + ' d ago';
+  }
+
+  async function loadCloudRuns() {
+    const ul = $('#cloud-runs');
+    const repo = settings.cloudRepo;
+    if (!validRepo(repo)) { ul.textContent = ''; return; }
+    try {
+      const res = await fetch(`https://api.github.com/repos/${repo}/issues?labels=agent-run&state=all&per_page=6`, { headers: { accept: 'application/vnd.github+json' } });
+      if (!res.ok) throw new Error('GitHub HTTP ' + res.status);
+      const list = await res.json();
+      ul.textContent = '';
+      if (!list.length) { ul.append(el('li', { class: 'hint' }, 'No cloud runs yet.')); return; }
+      for (const it of list) {
+        // Each run posts 4 comments: started, Claude Code, Codex, merged answer.
+        const state = it.comments >= 4 ? 'finished' : `working (${it.comments}/4)`;
+        ul.append(el('li', {}, el('a', { href: it.html_url, target: '_blank', rel: 'noopener' },
+          el('span', { class: 'num' }, '#' + it.number),
+          el('span', { class: 't' }, it.title),
+          el('span', { class: 'hint' }, `${state} · ${ago(it.created_at)}`))));
+      }
+    } catch (e) {
+      ul.textContent = '';
+      ul.append(el('li', { class: 'hint' }, `Could not load cloud runs (${e.message}).`));
+    }
+  }
+
+  async function cloudSend() {
+    const raw = $('#task').value.trim();
+    if (!raw) { banner('Write a task first.', 'warn'); $('#task').focus(); return; }
+    if (!validRepo(settings.cloudRepo)) { banner('Set the cloud agents repository (owner/repo) in Settings first.', 'warn'); openSettings(); return; }
+    const task = window.Engine.cleanTask(raw);
+    const base = `https://github.com/${settings.cloudRepo}/issues/new?`;
+    const title = 'Cloud run: ' + oneLine(task, 70);
+    let url = base + new URLSearchParams({ labels: 'agent-run', title, body: task });
+    let note = 'GitHub opened in a new tab with your task filled in. Click "Create" there to start Claude Code (ultracode) and Codex. Results arrive as comments on that issue, and the list here updates.';
+    if (url.length > 7500) {
+      // Too long for a URL: prefill the title and label, and put the task on the clipboard.
+      url = base + new URLSearchParams({ labels: 'agent-run', title });
+      try { await navigator.clipboard.writeText(task); note = 'Your task is too long for a link, so it has been copied to the clipboard. In the GitHub tab, paste it into the description (Ctrl+V), then click "Create".'; }
+      catch (_) { note = 'Your task is too long for a link. Copy it from the Task box, paste it into the GitHub description, then click "Create".'; }
+    }
+    window.open(url, '_blank', 'noopener');
+    banner(note, 'info');
+    setTimeout(loadCloudRuns, 30000);
+  }
+
   // ---------- CLI handoff ----------
   function renderHandoff() {
-    const task = oneLine($('#task').value, 2000) || '<your task>';
+    const task = oneLine(window.Engine.cleanTask($('#task').value), 2000) || '<your task>';
     $('#cmd-claude').textContent = 'ultracode: ' + task;
     $('#cmd-codex').textContent = `codex exec -m ${settings.modelGpt} -c model_reasoning_effort="xhigh" "${task.replace(/(["\\$`])/g, '\\$1')}"`;
   }
@@ -636,6 +710,7 @@
     renderStages();
     renderRoute();
     renderHandoff();
+    renderCloud();
     $('#effort-override').value = settings.effortOverride || 'stage';
   }
 
@@ -652,6 +727,8 @@
     });
     $('#run').addEventListener('click', () => run());
     $('#kickstart').addEventListener('click', kickstart);
+    $('#cloud-send').addEventListener('click', cloudSend);
+    $('#cloud-refresh').addEventListener('click', loadCloudRuns);
     $('#stop').addEventListener('click', () => { if (state.ctrl) state.ctrl.abort(); });
     $('#effort-override').addEventListener('change', e => { settings.effortOverride = e.target.value; saveSettings(); });
     $('#demo-toggle').addEventListener('change', e => { settings.demo = e.target.checked; saveSettings(); renderStatus(); });
@@ -722,6 +799,7 @@
     window.addEventListener('beforeunload', e => { if (state.running) { e.preventDefault(); e.returnValue = ''; } });
 
     renderAll();
+    loadCloudRuns();
   }
 
   init();

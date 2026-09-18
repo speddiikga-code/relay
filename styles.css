@@ -233,7 +233,19 @@ kbd { padding: 1px 5px; border: 1px solid var(--border-strong); border-bottom-wi
 .runbar-hint { flex-basis: 100%; margin: 2px 0 0; line-height: 1.5; }
 .runbar-hint code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
 .is-demo .runbar .btn.primary { background: var(--warn); border-color: var(--warn); color: #fff; }
-.handoff summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+.cloud > .hint { margin: 0 0 12px; line-height: 1.5; }
+.cloud-runs { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.cloud-runs:empty { display: none; }
+.cloud-runs a {
+  display: flex; gap: 8px; align-items: baseline; padding: 7px 10px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: inherit; text-decoration: none; font-size: 13px;
+}
+.cloud-runs a:hover { background: var(--surface-2); }
+.cloud-runs .num { flex: none; }
+.cloud-runs .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cloud-runs .hint { flex: none; }
+.handoff { margin-top: 12px; }
+.handoff summary { cursor: pointer; font-weight: 600; font-size: 13px; color: var(--muted); }
 .handoff p { margin: 10px 0; }
 .cmd { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; align-items: center; margin-top: 10px; }
 .cmd-label { grid-column: 1 / -1; font-size: 12px; font-weight: 600; color: var(--muted); }

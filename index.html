@@ -75,12 +75,26 @@
       <p class="hint runbar-hint"><b>Kickstart</b> reads your task, picks the orchestration, and runs it. <b>Run</b> uses the pipeline above as-is. Start a task with <code>ultracode:</code> to force Ultra.</p>
     </div>
 
-    <details class="card handoff">
-      <summary>Need real ultracode? Hand off to the CLI</summary>
-      <p class="hint">ultracode is a Claude Code mode that runs on your machine, and it fires only from input you type yourself. That is a deliberate security boundary, so no website can trigger it. Relay runs the same plan → fan-out → verify → synthesize pattern over the public APIs. To run it against a real repo, paste one of these:</p>
-      <div class="cmd"><span class="cmd-label">Claude Code (type in a session, v2.1.203+)</span><code id="cmd-claude"></code><button type="button" class="btn small ghost" data-copy="cmd-claude">Copy</button></div>
-      <div class="cmd"><span class="cmd-label">Codex CLI</span><code id="cmd-codex"></code><button type="button" class="btn small ghost" data-copy="cmd-codex">Copy</button></div>
-    </details>
+    <section class="card cloud" aria-labelledby="cloud-title">
+      <div class="card-head">
+        <h2 id="cloud-title">☁ Claude Code ultracode + Codex</h2>
+        <span class="tag" id="cloud-repo-tag"></span>
+      </div>
+      <p class="hint">Sends your task to the real <b>Claude Code with ultracode on</b> and <b>OpenAI Codex</b>, running in GitHub Actions. They work in parallel, then Claude merges both answers. Results arrive as comments on a GitHub issue, usually within 5–20 minutes. Runs are billed to the API keys saved as repository secrets, and only the repo owner can start one.</p>
+      <div class="row wrap">
+        <button type="button" class="btn primary small" id="cloud-send">Send task to cloud agents</button>
+        <a class="btn small ghost" id="cloud-runs-link" target="_blank" rel="noopener">All runs ↗</a>
+        <a class="btn small ghost" id="cloud-setup-link" target="_blank" rel="noopener">One-time setup ↗</a>
+        <button type="button" class="btn small ghost" id="cloud-refresh" aria-label="Refresh cloud runs">↻</button>
+      </div>
+      <ul class="cloud-runs" id="cloud-runs"></ul>
+      <details class="handoff">
+        <summary>Or run it on your own machine</summary>
+        <p class="hint">Typing the <code>ultracode:</code> keyword yourself inside Claude Code also works:</p>
+        <div class="cmd"><span class="cmd-label">Claude Code (type in a session, v2.1.203+)</span><code id="cmd-claude"></code><button type="button" class="btn small ghost" data-copy="cmd-claude">Copy</button></div>
+        <div class="cmd"><span class="cmd-label">Codex CLI</span><code id="cmd-codex"></code><button type="button" class="btn small ghost" data-copy="cmd-codex">Copy</button></div>
+      </details>
+    </section>
   </section>
 
   <section class="output" aria-label="Run output" aria-live="polite">
@@ -169,6 +183,15 @@
       <legend>Behavior</legend>
       <label class="check"><input type="checkbox" id="show-thinking"> Stream Claude's reasoning summaries</label>
       <label class="check"><input type="checkbox" id="fallbacks"> Claude server-side refusal fallback (Opus 5 / Fable 5.x)</label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Cloud agents</legend>
+      <div class="field">
+        <label for="cloud-repo">GitHub repository that runs them (owner/repo)</label>
+        <input id="cloud-repo" spellcheck="false" placeholder="owner/repo">
+        <span class="hint">It needs the <code>cloud-agents.yml</code> workflow and the <code>ANTHROPIC_API_KEY</code> and <code>OPENAI_API_KEY</code> repository secrets.</span>
+      </div>
     </fieldset>
 
     <details class="advanced">

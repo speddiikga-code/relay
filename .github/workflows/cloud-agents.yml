@@ -1,0 +1,242 @@
+name: Cloud agents (Claude Code ultracode + Codex)
+
+# Runs the real Claude Code CLI with ultracode on and OpenAI Codex on the same
+# task in parallel, then has Claude merge both answers. Every result is posted
+# as a comment on the task's issue.
+#
+# Start a run: open an issue with the "agent-run" label (the Relay site's
+# "Send task to cloud agents" button does this), or run this workflow by hand
+# from the Actions tab. Only the repository owner can start a run, because every
+# run spends the owner's API credit.
+#
+# Required repository secrets: ANTHROPIC_API_KEY, OPENAI_API_KEY
+# Optional repository variables: CLAUDE_MODEL (default claude-opus-5),
+#                                CODEX_MODEL (default gpt-6-astra)
+#
+# Untrusted text (the task) only ever reaches scripts through env vars, never
+# through ${{ }} interpolation inside run: blocks.
+
+on:
+  issues:
+    types: [opened]
+  workflow_dispatch:
+    inputs:
+      task:
+        description: Task for both agents
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  TASK: ${{ github.event.issue.body || github.event.issue.title || inputs.task }}
+  CLAUDE_MODEL: ${{ vars.CLAUDE_MODEL || 'claude-opus-5' }}
+  CODEX_MODEL: ${{ vars.CODEX_MODEL || 'gpt-6-astra' }}
+  UNATTENDED: >-
+    You are running unattended in a CI job and nobody can answer questions.
+    Make reasonable assumptions, state them briefly, and put the complete
+    deliverable in your final message as Markdown.
+
+jobs:
+  start:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.actor == github.repository_owner) ||
+      (github.event_name == 'issues' && github.event.issue.user.login == github.repository_owner &&
+       contains(github.event.issue.labels.*.name, 'agent-run'))
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    outputs:
+      issue: ${{ steps.start.outputs.issue }}
+    steps:
+      - id: start
+        uses: actions/github-script@v7
+        env:
+          HAS_ANTHROPIC: ${{ secrets.ANTHROPIC_API_KEY != '' }}
+          HAS_OPENAI: ${{ secrets.OPENAI_API_KEY != '' }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            let issue = context.payload.issue && context.payload.issue.number;
+            if (!issue) {
+              const title = 'Cloud run: ' + process.env.TASK.replace(/\s+/g, ' ').slice(0, 70);
+              issue = (await github.rest.issues.create({ owner, repo, title, body: process.env.TASK, labels: ['agent-run'] })).data.number;
+            }
+            core.setOutput('issue', String(issue));
+            const run = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const missing = [
+              process.env.HAS_ANTHROPIC !== 'true' && 'ANTHROPIC_API_KEY',
+              process.env.HAS_OPENAI !== 'true' && 'OPENAI_API_KEY',
+            ].filter(Boolean);
+            let body = `🚀 **Claude Code (ultracode)** and **Codex** are working on this in parallel; Claude merges both answers at the end. [Watch the run](${run})`;
+            if (missing.length) {
+              body += `\n\n⚠️ Missing repository secret(s): **${missing.join(', ')}**. Add them under Settings → Secrets and variables → Actions, then open a new issue.`;
+            }
+            await github.rest.issues.createComment({ owner, repo, issue_number: Number(issue), body });
+
+  claude:
+    needs: start
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+      - name: Claude Code with ultracode on
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set +e
+          claude --version
+          # ultracode = xhigh effort + dynamic workflows. In -p mode the Workflow
+          # tool must be allowed explicitly or the workflow launch is denied.
+          claude -p "$TASK" \
+            --model "$CLAUDE_MODEL" \
+            --settings '{"ultracode": true, "workflowSizeGuideline": "medium"}' \
+            --allowedTools "Workflow,Agent,Read,Glob,Grep,WebSearch,WebFetch,TodoWrite" \
+            --append-system-prompt "$UNATTENDED" \
+            --max-turns 80 \
+            --output-format json > claude.json 2> claude.err
+          code=$?
+          if jq -e .result claude.json > /dev/null 2>&1; then
+            jq -r '.result' claude.json > claude.md
+            jq -r '"\n\n---\n<sub>Claude Code · \(env.CLAUDE_MODEL) · ultracode · \(.num_turns // "?") turns · $\((.total_cost_usd // 0) * 100 | round / 100) · \((.duration_ms // 0) / 60000 | floor) min</sub>"' claude.json >> claude.md
+          else
+            { echo "Claude Code failed (exit $code)."; echo; echo '```'; tail -c 3000 claude.err; tail -c 2000 claude.json; echo '```'; } > claude.md
+          fi
+      - name: Post Claude Code result
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          ISSUE: ${{ needs.start.outputs.issue }}
+        with:
+          script: |
+            const fs = require('fs');
+            let text = fs.existsSync('claude.md') ? fs.readFileSync('claude.md', 'utf8')
+              : 'Claude Code produced no output (the job failed or timed out). Open the run for details.';
+            if (text.length > 60000) text = text.slice(0, 60000) + '\n\n…(truncated; the full text is in the run artifacts)';
+            await github.rest.issues.createComment({ ...context.repo, issue_number: Number(process.env.ISSUE), body: '## 🟠 Claude Code (ultracode)\n\n' + text });
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: claude
+          path: claude.md
+          if-no-files-found: ignore
+
+  codex:
+    needs: start
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Write prompt
+        run: printf '%s\n\n%s\n' "$UNATTENDED" "$TASK" > "$RUNNER_TEMP/codex-prompt.md"
+      - id: codex
+        name: Codex at xhigh effort
+        continue-on-error: true
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: ${{ runner.temp }}/codex-prompt.md
+          model: ${{ env.CODEX_MODEL }}
+          effort: xhigh
+          sandbox: read-only
+          output-file: ${{ runner.temp }}/codex.md
+      - id: codex_retry
+        name: Retry Codex at high effort
+        if: steps.codex.outcome == 'failure'
+        continue-on-error: true
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: ${{ runner.temp }}/codex-prompt.md
+          model: ${{ env.CODEX_MODEL }}
+          effort: high
+          sandbox: read-only
+          output-file: ${{ runner.temp }}/codex.md
+      - name: Post Codex result
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          ISSUE: ${{ needs.start.outputs.issue }}
+          OUT: ${{ runner.temp }}/codex.md
+          EFFORT: ${{ steps.codex.outcome == 'success' && 'xhigh' || 'high' }}
+        with:
+          script: |
+            const fs = require('fs');
+            let text = fs.existsSync(process.env.OUT) ? fs.readFileSync(process.env.OUT, 'utf8').trim() : '';
+            if (!text) text = 'Codex produced no output (check the OPENAI_API_KEY secret, model access and credit). Open the run for details.';
+            else text += `\n\n---\n<sub>OpenAI Codex · ${process.env.CODEX_MODEL} · effort ${process.env.EFFORT}</sub>`;
+            if (text.length > 60000) text = text.slice(0, 60000) + '\n\n…(truncated; the full text is in the run artifacts)';
+            await github.rest.issues.createComment({ ...context.repo, issue_number: Number(process.env.ISSUE), body: '## 🟢 OpenAI Codex\n\n' + text });
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: codex
+          path: ${{ runner.temp }}/codex.md
+          if-no-files-found: ignore
+
+  merge:
+    needs: [start, claude, codex]
+    if: always() && needs.start.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: results
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+      - name: Merge both answers
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set +e
+          {
+            printf 'Task:\n%s\n\n' "$TASK"
+            printf '## Answer A: Claude Code (ultracode)\n\n'
+            cat results/claude/claude.md 2>/dev/null || echo '(no result)'
+            printf '\n\n## Answer B: OpenAI Codex\n\n'
+            cat results/codex/codex.md 2>/dev/null || echo '(no result)'
+            printf '\n\nCompare the two answers. Where they disagree, decide which is right and why. '
+            printf 'Start with at most five bullets on what each got right or wrong, then write the single best final answer to the task, combining the strengths of both.\n'
+          } > merge-prompt.md
+          # Prompt goes in on stdin: a single command-line argument is capped at 128 KB on Linux.
+          claude -p --model "$CLAUDE_MODEL" --effort high --max-turns 3 --output-format json < merge-prompt.md > merge.json 2> merge.err
+          code=$?
+          if jq -e .result merge.json > /dev/null 2>&1; then
+            jq -r '.result' merge.json > merge.md
+          else
+            { echo "The merge step failed (exit $code)."; echo; echo '```'; tail -c 3000 merge.err; echo '```'; } > merge.md
+          fi
+      - name: Post merged answer
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          ISSUE: ${{ needs.start.outputs.issue }}
+        with:
+          script: |
+            const fs = require('fs');
+            let text = fs.existsSync('merge.md') ? fs.readFileSync('merge.md', 'utf8') : 'The merge step produced no output.';
+            if (text.length > 60000) text = text.slice(0, 60000) + '\n\n…(truncated)';
+            await github.rest.issues.createComment({ ...context.repo, issue_number: Number(process.env.ISSUE), body: '## ✅ Final answer (Claude merged both)\n\n' + text });
