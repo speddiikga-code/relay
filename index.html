@@ -3,292 +3,345 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https:; object-src 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'">
 <meta name="referrer" content="no-referrer">
-<title>Relay · Multi-AI</title>
-<meta name="description" content="Run real multi-agent prompt pipelines across Claude, GPT, Gemini, AWS Bedrock and any OpenAI-compatible API, straight from your browser. Results to KakaoTalk. Bring your own API keys.">
+<title>Relay: one prompt, every AI</title>
+<meta name="description" content="Relay runs your task through Claude, GPT, Gemini, AWS Bedrock and hundreds more models in parallel, and has them check each other's work. Free, open source, runs in your browser with your own keys.">
+<meta property="og:title" content="Relay: one prompt, every AI">
+<meta property="og:description" content="Run one task through Claude, GPT, Gemini and AWS at once. They cross-check each other and a judge merges the best answer. Results can go straight to your KakaoTalk.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://speddiikga-code.github.io/relay/">
+<meta name="theme-color" content="#141311">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231c1b19'/%3E%3Cpath d='M8 12h14l-3.5-3.5M24 20H10l3.5 3.5' stroke='%23fff' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="styles.css?v=4">
-<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js" defer></script>
-<script src="engine.js?v=4" defer></script>
-<script src="providers.js?v=4" defer></script>
-<script src="app.js?v=4" defer></script>
+<link rel="stylesheet" href="site.css?v=5">
+<script src="app/engine.js?v=5" defer></script>
+<script src="site.js?v=5" defer></script>
 </head>
 <body>
-<header class="topbar">
-  <div class="brand">
-    <span class="logo" aria-hidden="true">⇄</span>
-    <span class="brand-name">Relay</span>
-    <span class="brand-sub">Claude · GPT · Gemini · AWS orchestration</span>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="nav" id="top">
+  <div class="wrap nav-inner">
+    <a class="brand" href="#top"><span class="logo" aria-hidden="true">⇄</span>Relay</a>
+    <nav class="nav-links" aria-label="Sections">
+      <a href="#how">How it works</a>
+      <a href="#pipelines">Pipelines</a>
+      <a href="#cloud">Cloud agents</a>
+      <a href="#setup">Setup</a>
+      <a href="https://github.com/speddiikga-code/relay" rel="noopener">GitHub</a>
+    </nav>
+    <a class="btn btn-primary btn-sm" href="app/">Open the app</a>
   </div>
-  <nav class="top-actions" aria-label="Status and settings">
-    <span class="pills" id="pills" aria-label="Connected providers"></span>
-    <label class="switch" title="Demo mode simulates every call: no keys, no cost">
-      <input type="checkbox" id="demo-toggle" aria-label="Demo mode"><span>Demo</span>
-    </label>
-    <button type="button" class="btn ghost" id="btn-history">History</button>
-    <button type="button" class="btn" id="btn-settings">Settings</button>
-  </nav>
 </header>
 
-<main class="layout">
-  <section class="composer" aria-label="Compose">
-    <div class="card">
-      <label class="label" for="task">Task</label>
-      <textarea id="task" rows="7" placeholder="Describe what you want done. Paste any code or text the agents need; they can't see your files.&#10;&#10;e.g. Design a rate limiter for a public REST API and write the TypeScript for it."></textarea>
-      <div class="hint-row"><span class="hint"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> run · <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd> kickstart</span><span class="hint" id="task-count"></span></div>
-      <div id="route" class="route" hidden></div>
-    </div>
+<main id="main">
+  <!-- Hero -->
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div class="hero-copy">
+        <p class="eyebrow">Open source · runs in your browser</p>
+        <h1>One prompt.<br><span class="grad">Every AI.</span></h1>
+        <p class="lede">Relay sends your task to Claude, GPT, Gemini, AWS Bedrock and hundreds more models at once. They check each other's work, and a judge merges the best answer. Press <b>⚡ Kickstart</b> and Relay picks the orchestration for you.</p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="app/">Open Relay</a>
+          <a class="btn btn-ghost" href="app/?demo=1">Try the demo, no keys needed</a>
+        </div>
+        <ul class="hero-facts">
+          <li><b>5</b> providers + any OpenAI-compatible API</li>
+          <li><b>7</b> orchestration patterns</li>
+          <li><b>0</b> servers: your keys never leave your browser</li>
+        </ul>
+      </div>
 
-    <div class="card">
-      <div class="card-head">
-        <h2>Pipeline</h2>
-        <span class="hint" id="calls-est"></span>
-      </div>
-      <div class="presets" id="presets" role="radiogroup" aria-label="Pipeline presets"></div>
-      <div id="stages" class="stages"></div>
-      <div class="row wrap">
-        <button type="button" class="btn small" id="add-stage">+ Stage</button>
-        <button type="button" class="btn small ghost" id="swap-vendors" title="Swap every Claude slot for GPT and vice versa">Swap Claude ⇄ GPT</button>
-        <button type="button" class="btn small ghost" id="export-pipeline">Export</button>
-        <button type="button" class="btn small ghost" id="import-pipeline">Import</button>
-        <input type="file" id="import-file" accept="application/json,.json" hidden>
-      </div>
-      <p class="hint vars">Template variables: <code>{{task}}</code> <code>{{prev}}</code> <code>{{s1}}</code>, <code>{{s2}}</code>… (each stage's output) · fan-out only: <code>{{item}}</code> <code>{{index}}</code> <code>{{count}}</code></p>
+      <figure class="hero-art" aria-label="Diagram: your task fans out to Claude, GPT, Gemini, AWS Bedrock and Any API in parallel; a judge merges their answers into one final answer.">
+        <svg viewBox="0 0 640 380" role="img" aria-hidden="true">
+          <defs>
+            <linearGradient id="judgeGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="var(--claude)"/><stop offset=".5" stop-color="var(--gemini)"/><stop offset="1" stop-color="var(--gpt)"/>
+            </linearGradient>
+          </defs>
+          <!-- links: task → providers -->
+          <g class="links" fill="none" stroke-width="2">
+            <path class="flow f1" style="stroke:var(--claude)"  d="M150 190 C 200 190, 200 50, 250 50"/>
+            <path class="flow f2" style="stroke:var(--gpt)"     d="M150 190 C 200 190, 200 120, 250 120"/>
+            <path class="flow f3" style="stroke:var(--gemini)"  d="M150 190 L 250 190"/>
+            <path class="flow f4" style="stroke:var(--bedrock)" d="M150 190 C 200 190, 200 260, 250 260"/>
+            <path class="flow f5" style="stroke:var(--compat)"  d="M150 190 C 200 190, 200 330, 250 330"/>
+            <!-- providers → judge -->
+            <path class="flow f1" style="stroke:var(--claude)"  d="M395 50 C 440 50, 440 190, 485 190"/>
+            <path class="flow f2" style="stroke:var(--gpt)"     d="M395 120 C 440 120, 440 190, 485 190"/>
+            <path class="flow f3" style="stroke:var(--gemini)"  d="M395 190 L 485 190"/>
+            <path class="flow f4" style="stroke:var(--bedrock)" d="M395 260 C 440 260, 440 190, 485 190"/>
+            <path class="flow f5" style="stroke:var(--compat)"  d="M395 330 C 440 330, 440 190, 485 190"/>
+          </g>
+          <!-- task -->
+          <g class="node">
+            <rect x="20" y="160" width="130" height="60" rx="14"/>
+            <text x="85" y="187" class="t-strong">Your task</text>
+            <text x="85" y="206" class="t-dim">⚡ Kickstart</text>
+          </g>
+          <!-- providers -->
+          <g class="node prov" style="--c:var(--claude)"><rect x="250" y="30" width="145" height="40" rx="10"/><circle cx="270" cy="50" r="6"/><text x="284" y="55" class="t-left">Claude</text></g>
+          <g class="node prov" style="--c:var(--gpt)"><rect x="250" y="100" width="145" height="40" rx="10"/><circle cx="270" cy="120" r="6"/><text x="284" y="125" class="t-left">GPT</text></g>
+          <g class="node prov" style="--c:var(--gemini)"><rect x="250" y="170" width="145" height="40" rx="10"/><circle cx="270" cy="190" r="6"/><text x="284" y="195" class="t-left">Gemini</text></g>
+          <g class="node prov" style="--c:var(--bedrock)"><rect x="250" y="240" width="145" height="40" rx="10"/><circle cx="270" cy="260" r="6"/><text x="284" y="265" class="t-left">AWS Bedrock</text></g>
+          <g class="node prov" style="--c:var(--compat)"><rect x="250" y="310" width="145" height="40" rx="10"/><circle cx="270" cy="330" r="6"/><text x="284" y="335" class="t-left">Any API</text></g>
+          <!-- judge -->
+          <g class="node judge">
+            <rect x="485" y="150" width="135" height="80" rx="16"/>
+            <text x="552" y="183" class="t-strong">Judge</text>
+            <text x="552" y="204" class="t-dim">best final answer</text>
+          </g>
+        </svg>
+        <figcaption>Council: every connected AI answers in parallel, then a judge merges them.</figcaption>
+      </figure>
     </div>
-
-    <div class="runbar card">
-      <button type="button" class="btn primary" id="kickstart" title="Pick the pipeline for this task automatically, then run it (Ctrl+Shift+Enter)">⚡ Kickstart</button>
-      <button type="button" class="btn" id="run" title="Run the pipeline exactly as set above (Ctrl+Enter)">Run pipeline</button>
-      <button type="button" class="btn danger" id="stop" disabled>Stop</button>
-      <label class="sr-only" for="effort-override">Effort</label>
-      <select id="effort-override" title="Reasoning effort for every stage">
-        <option value="stage">Effort: per stage</option>
-        <option value="low">Effort: low</option>
-        <option value="medium">Effort: medium</option>
-        <option value="high">Effort: high</option>
-        <option value="xhigh">Effort: xhigh</option>
-        <option value="max">Effort: max</option>
-      </select>
-      <p class="hint runbar-hint"><b>Kickstart</b> reads your task, picks the orchestration, and runs it. <b>Run</b> uses the pipeline above as-is. Start a task with <code>ultracode:</code> to force Ultra.</p>
-    </div>
-
-    <section class="card cloud" aria-labelledby="cloud-title">
-      <div class="card-head">
-        <h2 id="cloud-title">☁ Claude Code ultracode + Codex</h2>
-        <span class="tag" id="cloud-repo-tag"></span>
-      </div>
-      <p class="hint">Sends your task to the real <b>Claude Code with ultracode on</b> (Anthropic API or AWS Bedrock), <b>OpenAI Codex</b> and <b>Google Gemini CLI</b>, running in GitHub Actions. They work in parallel, then Claude merges every answer. Results arrive as comments on a GitHub issue, usually within 5–20 minutes. Runs are billed to the API keys saved as repository secrets, and only the repo owner can start one.</p>
-      <div class="row wrap">
-        <button type="button" class="btn primary small" id="cloud-send">Send task to cloud agents</button>
-        <a class="btn small ghost" id="cloud-runs-link" target="_blank" rel="noopener">All runs ↗</a>
-        <a class="btn small ghost" id="cloud-setup-link" target="_blank" rel="noopener">One-time setup ↗</a>
-        <button type="button" class="btn small ghost" id="cloud-refresh" aria-label="Refresh cloud runs">↻</button>
-      </div>
-      <ul class="cloud-runs" id="cloud-runs"></ul>
-      <details class="handoff">
-        <summary>Or run it on your own machine</summary>
-        <p class="hint">Typing the <code>ultracode:</code> keyword yourself inside Claude Code also works:</p>
-        <div class="cmd"><span class="cmd-label">Claude Code (type in a session, v2.1.203+)</span><code id="cmd-claude"></code><button type="button" class="btn small ghost" data-copy="cmd-claude">Copy</button></div>
-        <div class="cmd"><span class="cmd-label">Codex CLI</span><code id="cmd-codex"></code><button type="button" class="btn small ghost" data-copy="cmd-codex">Copy</button></div>
-      </details>
-    </section>
   </section>
 
-  <section class="output" aria-label="Run output" aria-live="polite">
-    <div id="banner" class="banner" hidden></div>
-    <div id="totals" class="totals" hidden></div>
-    <section id="final" class="card final" hidden>
-      <div class="card-head">
-        <h2>Final output</h2>
-        <div class="row">
-          <button type="button" class="btn small ghost" id="copy-final">Copy</button>
-          <button type="button" class="btn small ghost" id="dl-final">Download .md</button>
-          <button type="button" class="btn small ghost" id="raw-final" aria-pressed="false">Raw</button>
-          <button type="button" class="btn small ghost" id="kakao-final" title="Send this result to your own KakaoTalk chat">KakaoTalk</button>
+  <!-- Providers strip -->
+  <section class="strip" aria-label="Connects to">
+    <div class="wrap">
+      <p class="strip-label">Connects to</p>
+      <ul class="logos">
+        <li style="--c:var(--claude)">Claude</li>
+        <li style="--c:var(--gpt)">GPT</li>
+        <li style="--c:var(--gemini)">Gemini</li>
+        <li style="--c:var(--bedrock)">AWS Bedrock</li>
+        <li style="--c:var(--compat)">OpenRouter</li>
+        <li style="--c:var(--compat)">Groq</li>
+        <li style="--c:var(--compat)">Mistral</li>
+        <li style="--c:var(--compat)">DeepSeek</li>
+        <li style="--c:var(--compat)">xAI Grok</li>
+        <li style="--c:var(--compat)">Together</li>
+        <li style="--c:var(--kakao-ink)">KakaoTalk</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section class="section" id="how">
+    <div class="wrap">
+      <h2 class="h2">How it works</h2>
+      <p class="sub">Three steps, and the second one is optional.</p>
+      <ol class="steps">
+        <li>
+          <span class="step-n">1</span>
+          <h3>Connect your AIs</h3>
+          <p>Paste the API keys you have into Settings: Claude, GPT, Gemini, AWS Bedrock, or one OpenRouter key for hundreds of models. Connect any subset. If a pipeline wants a service you don't have, a connected one stands in.</p>
+        </li>
+        <li>
+          <span class="step-n">2</span>
+          <h3>Describe the task</h3>
+          <p>Write what you want, and paste any code or text the agents need. Start with <code>ultracode:</code> to throw everything at it, or say "ask all the models" to get the Council.</p>
+        </li>
+        <li>
+          <span class="step-n">3</span>
+          <h3>Press ⚡ Kickstart</h3>
+          <p>Relay picks the cheapest orchestration that fits and runs it. You watch every agent stream live, with tokens and estimated cost, and the result can go straight to your KakaoTalk.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- Router playground -->
+  <section class="section alt" id="router">
+    <div class="wrap router-grid">
+      <div>
+        <h2 class="h2">Try the router</h2>
+        <p class="sub">Kickstart reads your task and chooses the lowest rung that fits, because running everything at maximum effort is the most expensive habit in AI work. This box runs the same code as the app.</p>
+        <div class="examples" id="rt-examples" aria-label="Example tasks"></div>
+      </div>
+      <div class="router card">
+        <label for="rt-input" class="label">Describe a task</label>
+        <textarea id="rt-input" rows="3" placeholder="e.g. migrate every component under src/ to TypeScript, about 40 files"></textarea>
+        <div class="rt-result" id="rt-result" aria-live="polite">
+          <p class="rt-empty">Type a task, or pick an example.</p>
         </div>
       </div>
-      <div id="final-body" class="md"></div>
-    </section>
-    <div id="timeline" class="timeline"></div>
+    </div>
+  </section>
 
-    <div id="empty" class="empty">
-      <h1>Run one prompt through Claude, GPT, Gemini and AWS together.</h1>
-      <ol class="steps">
-        <li><b>Add keys.</b> Paste any of your API keys (Claude, GPT, Gemini, AWS Bedrock, or Any API such as OpenRouter) in <em>Settings</em>. Connect KakaoTalk there too. They stay in this browser and go only to the vendors' APIs. No keys yet? Leave <em>Demo</em> on to see the flow.</li>
-        <li><b>Describe the task.</b> Start it with <code>ultracode:</code> if you want everything thrown at it.</li>
-        <li><b>Press ⚡ Kickstart.</b> Relay picks the cheapest orchestration that fits and runs it. Every agent streams live, each stage feeds the next, and you see tokens and estimated cost as they happen.</li>
+  <!-- Pipelines -->
+  <section class="section" id="pipelines">
+    <div class="wrap">
+      <h2 class="h2">Seven ways to orchestrate</h2>
+      <p class="sub">Every pipeline is editable: add stages, pick models per stage, and change the prompts. You can also export and import pipelines as JSON.</p>
+      <div class="cards">
+        <article class="pcard">
+          <header><h3>Solo</h3><span class="calls">1 call</span></header>
+          <div class="flowline"><span class="chip c-claude">Claude</span></div>
+          <p>One agent. The lowest rung, and enough for most tasks.</p>
+        </article>
+        <article class="pcard">
+          <header><h3>Compare</h3><span class="calls">2 calls</span></header>
+          <div class="flowline"><span class="chip c-claude">Claude</span><span class="par">‖</span><span class="chip c-gpt">GPT</span></div>
+          <p>Two independent answers side by side, for a second opinion.</p>
+        </article>
+        <article class="pcard">
+          <header><h3>Relay</h3><span class="calls">3 calls</span></header>
+          <div class="flowline"><span class="chip c-claude">Draft</span><span class="arr">→</span><span class="chip c-gpt">Attack</span><span class="arr">→</span><span class="chip c-claude">Revise</span></div>
+          <p>A different lab attacks the draft before you see it. Good for high-stakes work.</p>
+        </article>
+        <article class="pcard">
+          <header><h3>Debate</h3><span class="calls">5 calls</span></header>
+          <div class="flowline"><span class="chip c-claude">Answer</span><span class="par">‖</span><span class="chip c-gpt">Answer</span><span class="arr">→</span><span class="chip c-mix">Cross-examine</span><span class="arr">→</span><span class="chip c-claude">Judge</span></div>
+          <p>For audits and anything that has to be verified, not just confidently stated.</p>
+        </article>
+        <article class="pcard">
+          <header><h3>Fan-out</h3><span class="calls">N + 3 calls</span></header>
+          <div class="flowline"><span class="chip c-claude">Plan</span><span class="arr">→</span><span class="chip c-mix">N workers</span><span class="arr">→</span><span class="chip c-gpt">Refute</span><span class="arr">→</span><span class="chip c-claude">Merge</span></div>
+          <p>Many similar items handled the same way, like docs for every service or a review of every file.</p>
+        </article>
+        <article class="pcard hl">
+          <header><h3>Council</h3><span class="calls">every AI + 1</span></header>
+          <div class="flowline"><span class="chip c-all">Every connected AI</span><span class="arr">→</span><span class="chip c-claude">Judge</span></div>
+          <p>Breadth and consensus: where models agree, it's likely right. Where they disagree, the judge decides.</p>
+        </article>
+        <article class="pcard hl">
+          <header><h3>Ultra</h3><span class="calls">N + 7 calls</span></header>
+          <div class="flowline"><span class="chip c-claude">Plan</span><span class="arr">→</span><span class="chip c-mix">Workers</span><span class="arr">→</span><span class="chip c-mix">2 refuters</span><span class="arr">→</span><span class="chip c-claude">Merge</span><span class="arr">→</span><span class="chip c-gpt">Attack</span><span class="arr">→</span><span class="chip c-claude">Fix</span></div>
+          <p>Both vendors at every step, at xhigh effort. For when it has to be right. Triggered by <code>ultracode:</code>.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- Cloud agents -->
+  <section class="section dark" id="cloud">
+    <div class="wrap cloud-grid">
+      <div>
+        <p class="eyebrow on-dark">Cloud agents</p>
+        <h2 class="h2">Real coding agents, working in parallel</h2>
+        <p class="sub on-dark">One click sends your task to <b>GitHub Actions</b>, where these agents work on it at the same time. Then Claude merges their answers. Each result arrives as a comment on a GitHub issue.</p>
+        <ul class="agent-list">
+          <li><span class="dot" style="--c:var(--claude)"></span><b>Claude Code</b> with <b>ultracode</b> on: xhigh effort plus multi-agent workflows, through the Anthropic API or AWS Bedrock</li>
+          <li><span class="dot" style="--c:var(--gpt)"></span><b>OpenAI Codex</b> at xhigh reasoning effort</li>
+          <li><span class="dot" style="--c:var(--gemini)"></span><b>Google Gemini CLI</b></li>
+        </ul>
+        <p class="note on-dark">Only the repository owner can start a run, and each agent runs only if its key is saved as a repository secret. The <code>ultracode:</code> keyword works only when a person types it into Claude Code, so the cloud agents turn ultracode on through its documented setting.</p>
+      </div>
+      <ol class="pipeline-steps" aria-label="Cloud run steps">
+        <li><span>1</span><div><b>Send task</b><small>The app opens a prefilled GitHub issue. You click Create.</small></div></li>
+        <li><span>2</span><div><b>Agents run in parallel</b><small>Claude Code (ultracode) · Codex · Gemini CLI</small></div></li>
+        <li><span>3</span><div><b>Claude merges</b><small>It notes what each got right or wrong, then writes the single best answer.</small></div></li>
+        <li><span>4</span><div><b>Done ✅</b><small>Comments on the issue, and the run list in the app updates.</small></div></li>
       </ol>
-      <div class="ladder">
-        <div><b>Solo</b><span>one agent</span></div>
-        <div><b>Compare</b><span>both, side by side</span></div>
-        <div><b>Relay</b><span>draft → cross-vendor attack → revise</span></div>
-        <div><b>Debate</b><span>answer → cross-examine → judge</span></div>
-        <div><b>Fan-out</b><span>plan → workers → refute → synthesize</span></div>
-        <div><b>Council</b><span>every connected AI answers, a judge merges</span></div>
-        <div><b>Ultra</b><span>both vendors at every step</span></div>
+    </div>
+  </section>
+
+  <!-- KakaoTalk + security -->
+  <section class="section" id="trust">
+    <div class="wrap two">
+      <div class="card kakao">
+        <div class="kakao-badge" aria-hidden="true">TALK</div>
+        <h2 class="h3">Results in your KakaoTalk</h2>
+        <p>Connect KakaoTalk once and Relay messages you ("나와의 채팅") whenever a run finishes. Every final answer also gets a one-tap <b>KakaoTalk</b> button.</p>
+      </div>
+      <div class="card">
+        <h2 class="h3">Private by design</h2>
+        <ul class="checks">
+          <li><b>No server.</b> Relay is a static page. Your keys stay in your browser and go straight to each AI vendor.</li>
+          <li><b>Keys stay local.</b> By default they last only for the tab; saving them on the device is opt-in.</li>
+          <li><b>Locked down.</b> A strict Content-Security-Policy blocks other scripts, and every AI answer is sanitized before it's shown.</li>
+          <li><b>Spend guards.</b> You can cap agent calls per run, cap fan-out size and concurrency, and stop any run instantly.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Setup -->
+  <section class="section alt" id="setup">
+    <div class="wrap narrow">
+      <h2 class="h2">Setup</h2>
+      <p class="sub">Each part takes a few minutes, and you only need the parts you want.</p>
+
+      <details class="acc" open>
+        <summary>Connect AI keys (in the app)</summary>
+        <ol>
+          <li>Open <a href="app/">the app</a>, then click <b>Settings</b>.</li>
+          <li>Paste any keys you have, then click <b>Test &amp; load models</b> for each:
+            <ul>
+              <li><b>Claude</b>: <a href="https://console.anthropic.com/settings/keys" rel="noopener">Anthropic console</a></li>
+              <li><b>GPT</b>: <a href="https://platform.openai.com/api-keys" rel="noopener">OpenAI platform</a></li>
+              <li><b>Gemini</b>: <a href="https://aistudio.google.com/apikey" rel="noopener">Google AI Studio</a></li>
+              <li><b>AWS Bedrock</b>: <a href="https://console.aws.amazon.com/bedrock/home#/api-keys" rel="noopener">Bedrock API keys</a>, plus pick your region</li>
+              <li><b>Any API</b>: choose OpenRouter, Groq, Mistral, DeepSeek, xAI, Together or a custom URL</li>
+            </ul>
+          </li>
+          <li>Click <b>Save</b>, untick <b>Demo</b>, and press <b>⚡ Kickstart</b>.</li>
+        </ol>
+      </details>
+
+      <details class="acc">
+        <summary>Turn on cloud agents (GitHub)</summary>
+        <ol>
+          <li>Open the repo's <a href="https://github.com/speddiikga-code/relay/settings/secrets/actions" rel="noopener">Actions secrets</a> page.</li>
+          <li>Add any of these secrets. Each one switches on its agent:
+            <table class="mini">
+              <tr><td><code>ANTHROPIC_API_KEY</code></td><td>Claude Code (ultracode) + the merge step</td></tr>
+              <tr><td><code>AWS_BEARER_TOKEN_BEDROCK</code></td><td>Claude Code through AWS Bedrock</td></tr>
+              <tr><td><code>OPENAI_API_KEY</code></td><td>OpenAI Codex</td></tr>
+              <tr><td><code>GEMINI_API_KEY</code></td><td>Google Gemini CLI</td></tr>
+            </table>
+          </li>
+          <li>In the app, write a task and click <b>Send task to cloud agents</b>.</li>
+        </ol>
+      </details>
+
+      <details class="acc">
+        <summary>Connect KakaoTalk</summary>
+        <ol>
+          <li>Create an app at <a href="https://developers.kakao.com/console/app" rel="noopener">developers.kakao.com</a>.</li>
+          <li>Under <b>Platform → Web</b>, add the site domain <code>https://speddiikga-code.github.io</code>.</li>
+          <li>Under <b>Kakao Login</b>, turn it on and add the Redirect URI <code>https://speddiikga-code.github.io/relay/app/</code>.</li>
+          <li>Under <b>Consent items</b>, enable "Send message in KakaoTalk" (<code>talk_message</code>).</li>
+          <li>In the app, go to <b>Settings → KakaoTalk</b>, paste the REST API key, press <b>Connect KakaoTalk</b>, then <b>Send test message</b>.</li>
+        </ol>
+      </details>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="section" id="faq">
+    <div class="wrap narrow">
+      <h2 class="h2">Questions</h2>
+      <details class="acc">
+        <summary>Is this really Claude Code's ultracode?</summary>
+        <p>Two different things are involved. <b>In the browser</b>, Relay runs its own orchestration (the pipelines above) directly against the model APIs. <b>In the cloud agents</b>, it runs the real Claude Code CLI with the documented <code>ultracode</code> setting turned on. The typed <code>ultracode:</code> keyword works only when a person types it into Claude Code, by design, so no website can trigger it.</p>
+      </details>
+      <details class="acc">
+        <summary>What does it cost?</summary>
+        <p>Relay itself is free. You pay each AI provider for the tokens your runs use, on your own keys. The app shows tokens and an estimated cost per agent and per run. Start with Solo, and move up the ladder only when a task needs it.</p>
+      </details>
+      <details class="acc">
+        <summary>Can it read my files or my repository?</summary>
+        <p>The browser app can't. Paste in what the agents need. The cloud agents can read the repository they run in (read-only), and they answer in comments rather than pushing code.</p>
+      </details>
+      <details class="acc">
+        <summary>Can other people use my keys?</summary>
+        <p>No. Your keys are stored only in your own browser, so visitors to the site use their own. Cloud runs start only for the repository owner.</p>
+      </details>
+    </div>
+  </section>
+
+  <!-- Final CTA -->
+  <section class="final-cta">
+    <div class="wrap">
+      <h2>Stop asking one AI.</h2>
+      <p>Open Relay and put all of them on your task.</p>
+      <div class="cta-row center">
+        <a class="btn btn-primary" href="app/">Open Relay</a>
+        <a class="btn btn-ghost" href="app/?demo=1">Try the demo</a>
       </div>
     </div>
   </section>
 </main>
 
-<footer class="footer">
-  <p>Relay is a static page with no server. Your keys stay in this browser and requests go straight to <code>api.anthropic.com</code> and <code>api.openai.com</code> (or the base URLs you set). Costs are estimates. Set spend limits on your keys.</p>
+<footer class="foot">
+  <div class="wrap foot-inner">
+    <span><span class="logo sm" aria-hidden="true">⇄</span> Relay · a static site with no server and no tracking</span>
+    <span><a href="https://github.com/speddiikga-code/relay" rel="noopener">Source on GitHub</a> · <a href="app/">App</a> · <a href="#top">Back to top</a></span>
+  </div>
 </footer>
-
-<dialog id="settings" class="dialog" aria-labelledby="settings-title">
-  <div class="dialog-head">
-    <h2 id="settings-title">Settings</h2>
-    <button type="button" class="btn small ghost" data-close aria-label="Close">✕</button>
-  </div>
-  <div class="dialog-body">
-    <fieldset>
-      <legend>Anthropic &amp; OpenAI</legend>
-      <div class="field">
-        <label for="key-anthropic">Anthropic API key</label>
-        <div class="row"><input id="key-anthropic" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-…"><button type="button" class="btn small" id="load-anthropic">Test &amp; load models</button></div>
-        <span class="hint" id="st-anthropic"></span>
-      </div>
-      <div class="field">
-        <label for="key-openai">OpenAI API key</label>
-        <div class="row"><input id="key-openai" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…"><button type="button" class="btn small" id="load-openai">Test &amp; load models</button></div>
-        <span class="hint" id="st-openai"></span>
-      </div>
-      <label class="check"><input type="checkbox" id="remember" aria-label="Remember keys on this device"> Remember keys on this device (localStorage). Leave off on shared computers: keys then last only for this tab.</label>
-    </fieldset>
-
-    <fieldset>
-      <legend>Models</legend>
-      <div class="grid2">
-        <div class="field"><label for="m-claude">Claude</label><input id="m-claude" list="dl-anthropic" spellcheck="false"></div>
-        <div class="field"><label for="m-claude-fast">Claude · fast</label><input id="m-claude-fast" list="dl-anthropic" spellcheck="false"></div>
-        <div class="field"><label for="m-gpt">GPT</label><input id="m-gpt" list="dl-openai" spellcheck="false"></div>
-        <div class="field"><label for="m-gpt-fast">GPT · fast</label><input id="m-gpt-fast" list="dl-openai" spellcheck="false"></div>
-      </div>
-      <datalist id="dl-anthropic"><option value="claude-opus-5"><option value="claude-fable-5-1"><option value="claude-sonnet-5"><option value="claude-haiku-4-5"></datalist>
-      <datalist id="dl-openai"><option value="gpt-6-astra"><option value="gpt-5.6-sol"><option value="gpt-5.6-terra"><option value="gpt-5.6-luna"></datalist>
-    </fieldset>
-
-    <fieldset>
-      <legend>Google Gemini</legend>
-      <div class="field">
-        <label for="key-gemini">Gemini API key · <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">get one ↗</a></label>
-        <div class="row"><input id="key-gemini" type="password" autocomplete="off" spellcheck="false" placeholder="AIza…"><button type="button" class="btn small" id="load-gemini">Test &amp; load models</button></div>
-        <span class="hint" id="st-gemini"></span>
-      </div>
-      <div class="field"><label for="m-gemini">Gemini model</label><input id="m-gemini" list="dl-gemini" spellcheck="false"></div>
-      <datalist id="dl-gemini"><option value="gemini-3.8-flash"><option value="gemini-3.1-pro-preview"><option value="gemini-3.7-flash"><option value="gemini-3.5-flash-lite"></datalist>
-    </fieldset>
-
-    <fieldset>
-      <legend>Amazon Bedrock (AWS)</legend>
-      <div class="field">
-        <label for="key-bedrock">Bedrock API key · <a href="https://console.aws.amazon.com/bedrock/home#/api-keys" target="_blank" rel="noopener">create one ↗</a></label>
-        <div class="row"><input id="key-bedrock" type="password" autocomplete="off" spellcheck="false" placeholder="Bedrock API key"><button type="button" class="btn small" id="load-bedrock">Test &amp; load models</button></div>
-        <span class="hint" id="st-bedrock"></span>
-      </div>
-      <div class="grid2">
-        <div class="field"><label for="bedrock-region">Region</label><input id="bedrock-region" list="dl-regions" spellcheck="false"></div>
-        <div class="field"><label for="m-bedrock">Bedrock model</label><input id="m-bedrock" list="dl-bedrock" spellcheck="false"></div>
-      </div>
-      <datalist id="dl-regions"><option value="us-east-1"><option value="us-west-2"><option value="ap-northeast-2"><option value="ap-northeast-1"><option value="eu-central-1"><option value="eu-west-1"><option value="ap-southeast-2"></datalist>
-      <datalist id="dl-bedrock"><option value="us.anthropic.claude-opus-5"><option value="global.anthropic.claude-opus-5"><option value="apac.anthropic.claude-opus-5"></datalist>
-    </fieldset>
-
-    <fieldset>
-      <legend>Any API (OpenAI-compatible)</legend>
-      <div class="grid2">
-        <div class="field"><label for="compat-provider">Service</label>
-          <select id="compat-provider">
-            <option value="openrouter">OpenRouter (hundreds of models)</option>
-            <option value="groq">Groq</option>
-            <option value="mistral">Mistral</option>
-            <option value="deepseek">DeepSeek</option>
-            <option value="xai">xAI (Grok)</option>
-            <option value="together">Together AI</option>
-            <option value="custom">Custom URL</option>
-          </select>
-        </div>
-        <div class="field"><label for="compat-base">Base URL</label><input id="compat-base" spellcheck="false"></div>
-      </div>
-      <div class="field">
-        <label for="key-compat">API key</label>
-        <div class="row"><input id="key-compat" type="password" autocomplete="off" spellcheck="false" placeholder="API key for that service"><button type="button" class="btn small" id="load-compat">Test &amp; load models</button></div>
-        <span class="hint" id="st-compat"></span>
-      </div>
-      <div class="field"><label for="m-compat">Model</label><input id="m-compat" list="dl-compat" spellcheck="false" placeholder="pick one after Test &amp; load models"></div>
-      <datalist id="dl-compat"></datalist>
-    </fieldset>
-
-    <fieldset>
-      <legend>KakaoTalk</legend>
-      <p class="hint">Get a KakaoTalk message ("send to me") when a run finishes, or send any result with one click. One-time setup at <a href="https://developers.kakao.com/console/app" target="_blank" rel="noopener">developers.kakao.com</a>: create an app → <b>Platform → Web</b>: add site domain <code id="kakao-domain"></code> → <b>Kakao Login</b>: turn it on and add Redirect URI <code id="kakao-redirect"></code> → <b>Consent items</b>: enable "Send message in KakaoTalk" (<code>talk_message</code>). Then paste the app's REST API key here and press Connect.</p>
-      <div class="grid2">
-        <div class="field"><label for="kakao-rest">REST API key</label><input id="kakao-rest" type="password" autocomplete="off" spellcheck="false"></div>
-        <div class="field"><label for="kakao-secret">Client secret (only if enabled)</label><input id="kakao-secret" type="password" autocomplete="off" spellcheck="false"></div>
-      </div>
-      <div class="row wrap">
-        <button type="button" class="btn small" id="kakao-connect">Connect KakaoTalk</button>
-        <button type="button" class="btn small ghost" id="kakao-test">Send test message</button>
-        <button type="button" class="btn small ghost" id="kakao-disconnect">Disconnect</button>
-      </div>
-      <span class="hint" id="st-kakao"></span>
-      <label class="check"><input type="checkbox" id="kakao-notify"> Message me on KakaoTalk when a run finishes</label>
-    </fieldset>
-
-    <fieldset>
-      <legend>Limits: your runaway-cost guard</legend>
-      <div class="grid2">
-        <div class="field"><label for="max-calls">Max agent calls per run</label><input id="max-calls" type="number" min="1" max="500"></div>
-        <div class="field"><label for="max-items">Max fan-out items</label><input id="max-items" type="number" min="1" max="200"></div>
-        <div class="field"><label for="concurrency">Concurrent agents</label><input id="concurrency" type="number" min="1" max="32"></div>
-        <div class="field"><label for="max-tokens">Claude max output tokens</label><input id="max-tokens" type="number" min="256" max="128000" step="256"></div>
-      </div>
-    </fieldset>
-
-    <fieldset>
-      <legend>Behavior</legend>
-      <label class="check"><input type="checkbox" id="show-thinking"> Stream Claude's reasoning summaries</label>
-      <label class="check"><input type="checkbox" id="fallbacks"> Claude server-side refusal fallback (Opus 5 / Fable 5.x)</label>
-    </fieldset>
-
-    <fieldset>
-      <legend>Cloud agents</legend>
-      <div class="field">
-        <label for="cloud-repo">GitHub repository that runs them (owner/repo)</label>
-        <input id="cloud-repo" spellcheck="false" placeholder="owner/repo">
-        <span class="hint">It needs the <code>cloud-agents.yml</code> workflow and the <code>ANTHROPIC_API_KEY</code> and <code>OPENAI_API_KEY</code> repository secrets.</span>
-      </div>
-    </fieldset>
-
-    <details class="advanced">
-      <summary>Advanced: base URLs &amp; prices</summary>
-      <div class="field"><label for="base-anthropic">Anthropic base URL</label><input id="base-anthropic" spellcheck="false"></div>
-      <div class="field"><label for="base-openai">OpenAI base URL</label><input id="base-openai" spellcheck="false"></div>
-      <p class="hint">Point these at your own proxy if a network blocks direct browser calls. The key is sent to whatever URL is set here.</p>
-      <div class="field"><label for="prices">Prices, $ per 1M tokens [input, output]</label><textarea id="prices" rows="8" spellcheck="false"></textarea></div>
-    </details>
-  </div>
-  <div class="dialog-foot">
-    <button type="button" class="btn ghost" id="clear-keys">Forget keys</button>
-    <button type="button" class="btn ghost" id="reset-settings">Reset</button>
-    <span class="spacer"></span>
-    <button type="button" class="btn primary" id="save-settings">Save</button>
-  </div>
-</dialog>
-
-<dialog id="history" class="dialog" aria-labelledby="history-title">
-  <div class="dialog-head">
-    <h2 id="history-title">History <span class="hint">(this browser only)</span></h2>
-    <button type="button" class="btn small ghost" data-close aria-label="Close">✕</button>
-  </div>
-  <div class="dialog-body"><ul id="history-list" class="history-list"></ul></div>
-  <div class="dialog-foot">
-    <button type="button" class="btn ghost" id="clear-history">Clear history</button>
-    <span class="spacer"></span>
-    <button type="button" class="btn" data-close>Close</button>
-  </div>
-</dialog>
 </body>
 </html>

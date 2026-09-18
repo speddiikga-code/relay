@@ -794,7 +794,8 @@
   // ---------- KakaoTalk ("send to me" via Kakao REST API; OAuth code flow in the browser) ----------
   const KAUTH = 'https://kauth.kakao.com';
   const KAPI = 'https://kapi.kakao.com';
-  function kakaoRedirectUri() { return location.origin + location.pathname; }
+  // Must match the Redirect URI registered in the Kakao app exactly, so drop a trailing index.html.
+  function kakaoRedirectUri() { return location.origin + location.pathname.replace(/index\.html$/, ''); }
   function kakaoConnected() { return !!(keys.kakaoToken && (keys.kakaoToken.access || keys.kakaoToken.refresh)); }
 
   function renderKakaoStatus() {
@@ -887,6 +888,14 @@
   }
 
   function init() {
+    // ?demo=1 (the landing page's "Try the demo" link) opens straight into demo mode.
+    const qs = new URLSearchParams(location.search);
+    if (qs.get('demo') === '1') {
+      settings.demo = true;
+      saveSettings();
+      qs.delete('demo');
+      history.replaceState(null, '', location.pathname + (qs.toString() ? '?' + qs : ''));
+    }
     const draft = store.get('relay.draft', '');
     if (draft) $('#task').value = draft;
 

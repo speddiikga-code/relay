@@ -2,7 +2,7 @@
 
 A static website that runs real multi-agent prompt pipelines across **Claude**, **GPT**, **Google Gemini**, **Amazon Bedrock (AWS)**, and **any OpenAI-compatible API** (OpenRouter, Groq, Mistral, DeepSeek, xAI, Together…), straight from your browser. It can send results to your **KakaoTalk**. It has no backend and no build step, and it hosts on GitHub Pages as is.
 
-**Live:** https://speddiikga-code.github.io/relay/
+**Live:** landing page at https://speddiikga-code.github.io/relay/, and the app at https://speddiikga-code.github.io/relay/app/ ([demo mode](https://speddiikga-code.github.io/relay/app/?demo=1), no keys needed)
 
 ## Connected providers
 
@@ -23,7 +23,7 @@ Every one of these APIs was checked to accept direct browser calls (CORS), inclu
 
 1. Go to [developers.kakao.com](https://developers.kakao.com/console/app) and create an app.
 2. Under **Platform → Web**, add the site domain `https://speddiikga-code.github.io`.
-3. Under **Kakao Login**, turn it on and add the Redirect URI `https://speddiikga-code.github.io/relay/`.
+3. Under **Kakao Login**, turn it on and add the Redirect URI `https://speddiikga-code.github.io/relay/app/`.
 4. Under **Consent items**, enable "Send message in KakaoTalk" (`talk_message`).
 5. In Relay, open **Settings → KakaoTalk**, paste the app's REST API key (plus the client secret if you enabled one), and press **Connect KakaoTalk**.
 6. Turn on "Message me on KakaoTalk when a run finishes". Every final result also gets a **KakaoTalk** button.
@@ -73,44 +73,43 @@ Optional repository variables override the defaults: `CLAUDE_MODEL` (`claude-opu
 
 **Agents are read-only:** they can read this repo and the web, and they answer in comments. They don't push code.
 
-## Deploy to GitHub Pages (about 2 minutes, no git needed)
+## Deploy
 
-1. On github.com, click **New repository**. Name it (for example `relay`), make it **Public**, and create it.
-2. On the empty repo page, click **uploading an existing file**. Drag in `index.html`, `styles.css`, `engine.js`, `providers.js`, `app.js` and `README.md`, then click **Commit changes**.
-3. Go to **Settings → Pages**. Under *Build and deployment*, set Source to **Deploy from a branch**, Branch to **main**, and folder to **/ (root)**. Click **Save**.
-4. After about a minute the site is live at `https://<your-username>.github.io/<repo-name>/`.
+GitHub Pages serves the `main` branch root. Any push to `main` redeploys in about a minute. To host your own copy, fork this repo and turn on **Settings → Pages → Deploy from a branch → main → / (root)**.
 
 ## Using it
 
-1. Open **Settings**, paste your Anthropic and OpenAI API keys, then click **Test & load models**.
+1. Open [the app](https://speddiikga-code.github.io/relay/app/) and click **Settings**. Paste any keys you have (Claude, GPT, Gemini, AWS Bedrock, Any API), then click **Test & load models** for each.
 2. Turn **Demo** off in the header.
-3. Describe a task. Pick a pipeline, or click **Use suggestion**. Then press **Run pipeline** (or Ctrl + Enter).
+3. Describe a task and press **⚡ Kickstart** (Ctrl + Shift + Enter). You can also pick a pipeline yourself and press **Run pipeline** (Ctrl + Enter).
 
-Default models are `claude-opus-5` / `claude-sonnet-5` and `gpt-6-astra` / `gpt-5.6-terra`. Change them in Settings. Pipelines reference *slots* (Claude, Claude · fast, GPT, GPT · fast), so a model change applies everywhere.
+Defaults: `claude-opus-5` / `claude-sonnet-5`, `gpt-6-astra` / `gpt-5.6-terra`, `gemini-3.8-flash`, and `us.anthropic.claude-opus-5` on Bedrock (`us-east-1`). Any API defaults to `openrouter/auto`. Change any of them in Settings. Pipelines reference *slots* rather than model IDs, so a model change applies everywhere.
 
 ## Security model: read this
 
-- Your keys are stored **only in your browser**: sessionStorage by default, or localStorage if you tick *Remember*. They are sent only to the base URLs in Settings, which are `api.anthropic.com` and `api.openai.com` unless you change them.
+- Your keys are stored **only in your browser**: sessionStorage by default, or localStorage if you tick *Remember*. Each key is sent only to its own provider's API (or the base URL you set for it).
 - **Never commit keys to this repo.** The site never asks you to.
 - Anyone who can run JavaScript in this page can read your keys. The page loads nothing but its own files and two pinned libraries (marked, DOMPurify), and a Content-Security-Policy blocks other scripts. Model output is sanitized before rendering.
 - Use keys with **spend limits** set in each vendor's console, and don't use *Remember* on shared computers.
 - If you publish the site publicly, visitors use **their own** keys. Nobody can spend yours.
 
-## What it is not
+## What it is and isn't
 
-- **It is not Claude Code's `ultracode`.** ultracode is a mode of the Claude Code CLI that runs on your machine, and it fires only from input you type yourself. That is a deliberate security boundary, so no website can trigger it. Relay runs the same plan → fan-out → verify → synthesize pattern over the public APIs. For work on a real repository, the *Hand off to the CLI* panel gives you the command for Claude Code or Codex.
-- **It cannot read your files or repo.** Paste the content the agents need into the task.
+- **Browser pipelines are Relay's own orchestration**, running directly against the model APIs. The **cloud agents** run the real Claude Code CLI with the documented `ultracode` setting on. The typed `ultracode:` keyword works only when a person types it into Claude Code, by design, so no website can trigger it.
+- **The browser app can't read your files or repo.** Paste the content the agents need into the task. The cloud agents can read the repository they run in, read-only.
 - **Costs are estimates** based on the editable price table. Your vendor dashboards are the source of truth.
 
 ## Files
 
 | File | Purpose |
 |---|---|
-| `index.html` | Page structure and dialogs |
-| `styles.css` | Styles (light and dark) |
-| `engine.js` | Presets, router, templating, fan-out runner, budgets, pricing (no DOM, no network) |
-| `providers.js` | Anthropic Messages API and OpenAI Responses API streaming adapters, model listing, demo provider |
-| `app.js` | UI: editor, live run view, settings, history |
+| `index.html`, `site.css`, `site.js` | Landing page. Its "Try the router" box runs the app's real router. |
+| `app/index.html` | App structure and dialogs |
+| `app/styles.css` | App styles (light and dark) |
+| `app/engine.js` | Presets, router, templating, fan-out runner, provider stand-ins, budgets, pricing (no DOM, no network) |
+| `app/providers.js` | Streaming adapters for Anthropic, OpenAI, Gemini, Bedrock and OpenAI-compatible APIs, model listing, demo provider |
+| `app/app.js` | UI: editor, live run view, settings, history, cloud agents, KakaoTalk |
+| `.github/workflows/cloud-agents.yml` | Cloud agents: Claude Code (ultracode), Codex and Gemini CLI, plus the merge step |
 
 ## Run locally
 
@@ -118,4 +117,4 @@ Default models are `claude-opus-5` / `claude-sonnet-5` and `gpt-6-astra` / `gpt-
 python -m http.server 8765
 ```
 
-Then open http://localhost:8765. Serve it over HTTP like this rather than double-clicking `index.html`, because browsers restrict pages opened from disk.
+Then open http://localhost:8765 for the landing page, or http://localhost:8765/app/ for the app. Serve it over HTTP like this rather than double-clicking `index.html`, because browsers restrict pages opened from disk.
