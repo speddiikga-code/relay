@@ -339,6 +339,7 @@ You are the judge. Where the answers agree, that is likely right; where they dis
     const outputs = {};
     let prev = '';
     let calls = 0;
+    let prevModels = []; // models the previous stage ran on; stand-ins avoid them so reviews stay cross-vendor
     const vars = extra => Object.assign({ task, prev, maxItems: settings.maxItems }, outputs, extra || {});
 
     const guarded = async (slot, system, prompt, effort, pane) => {
@@ -360,9 +361,10 @@ You are the judge. Where the answers agree, that is likely right; where they dis
       const system = render(st.system, vars());
       try {
         // Expand "@all" and stand in connected providers for unconnected ones.
-        const resolved = settings.resolveModels ? settings.resolveModels(st.models, st.type) : { models: st.models, notes: [] };
+        const resolved = settings.resolveModels ? settings.resolveModels(st.models, st.type, prevModels) : { models: st.models, notes: [] };
         resolved.notes.forEach(n => sv.note(n));
         const models = resolved.models;
+        prevModels = models;
         if (!models.length) throw new Error('No AI provider is connected for this stage. Add a key in Settings, or turn on Demo.');
         let out;
         if (st.type === 'agent') {

@@ -111,14 +111,18 @@
   function connectedMain() { return settings.demo ? MAIN_SLOTS.slice() : MAIN_SLOTS.filter(s => connected(SLOTS[s].vendor)); }
 
   // Expand "@all" to every connected provider, and swap unconnected slots for connected ones.
-  function resolveModels(models, type) {
+  // A stand-in prefers a provider the previous stage didn't use, so a "cross-vendor review"
+  // doesn't end up with a model reviewing its own draft.
+  function resolveModels(models, type, avoid) {
     const avail = connectedMain();
+    const prevVendors = (avoid || []).map(s => SLOTS[s] && SLOTS[s].vendor);
     const out = [], notes = [];
     for (const m of models) {
       if (m === ALL) { avail.forEach(s => out.push(s)); continue; }
       if (!SLOTS[m]) continue;
       if (settings.demo || connected(SLOTS[m].vendor)) { out.push(m); continue; }
-      const sub = avail.find(s => !out.includes(s)) || avail[0];
+      const sub = avail.find(s => !out.includes(s) && !prevVendors.includes(SLOTS[s].vendor))
+        || avail.find(s => !out.includes(s)) || avail[0];
       if (sub) {
         out.push(sub);
         notes.push(`${VENDORS[SLOTS[m].vendor].name} isn't connected, so ${SLOTS[sub].label} stands in.`);
@@ -890,12 +894,14 @@
   function init() {
     // ?demo=1 (the landing page's "Try the demo" link) opens straight into demo mode.
     const qs = new URLSearchParams(location.search);
-    if (qs.get('demo') === '1') {
-      settings.demo = true;
-      saveSettings();
-      qs.delete('demo');
-      history.replaceState(null, '', location.pathname + (qs.toString() ? '?' + qs : ''));
-    }
+    // ?task=…&preset=… (the landing page's "Open in the app" links) prefill the task and pipeline.
+    const qTask = qs.get('task');
+    const qPreset = qs.get('preset');
+    if (qs.get('demo') === '1') { settings.demo = true; saveSettings(); }
+    if (qPreset && PRESETS[qPreset]) { state.pipeline = fromPreset(qPreset); savePipeline(); }
+    if (qTask) store.set('relay.draft', qTask.slice(0, 20000));
+    ['demo', 'task', 'preset'].forEach(k => qs.delete(k));
+    if (location.search && !qs.has('code') && !qs.has('error')) history.replaceState(null, '', location.pathname + (qs.toString() ? '?' + qs : ''));
     const draft = store.get('relay.draft', '');
     if (draft) $('#task').value = draft;
 

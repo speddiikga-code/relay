@@ -11,252 +11,217 @@
 <meta property="og:description" content="Run one task through Claude, GPT, Gemini and AWS at once. They cross-check each other and a judge merges the best answer. Results can go straight to your KakaoTalk.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://speddiikga-code.github.io/relay/">
-<meta name="theme-color" content="#141311">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231c1b19'/%3E%3Cpath d='M8 12h14l-3.5-3.5M24 20H10l3.5 3.5' stroke='%23fff' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="site.css?v=5">
-<script src="app/engine.js?v=5" defer></script>
-<script src="site.js?v=5" defer></script>
+<meta name="theme-color" content="#0d0c12">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23ff3d8b'/%3E%3Cstop offset='.5' stop-color='%232f6bff'/%3E%3Cstop offset='1' stop-color='%2310a37f'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Cpath d='M8 12h14l-3.5-3.5M24 20H10l3.5 3.5' stroke='%23fff' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="site.css?v=6">
+<script src="app/engine.js?v=6" defer></script>
+<script src="site.js?v=6" defer></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
+<canvas id="confetti" aria-hidden="true"></canvas>
 
 <header class="nav" id="top">
   <div class="wrap nav-inner">
     <a class="brand" href="#top"><span class="logo" aria-hidden="true">⇄</span>Relay</a>
     <nav class="nav-links" aria-label="Sections">
-      <a href="#how">How it works</a>
+      <a href="#orchestra">Play</a>
+      <a href="#router">Router</a>
       <a href="#pipelines">Pipelines</a>
-      <a href="#cloud">Cloud agents</a>
+      <a href="#cost">Cost</a>
+      <a href="#cloud">Cloud</a>
       <a href="#setup">Setup</a>
-      <a href="https://github.com/speddiikga-code/relay" rel="noopener">GitHub</a>
     </nav>
-    <a class="btn btn-primary btn-sm" href="app/">Open the app</a>
+    <button type="button" class="icon-btn" id="theme-toggle" aria-label="Theme: auto" title="Switch theme">◐</button>
+    <a class="btn btn-rainbow btn-sm magnetic" href="app/">Open the app</a>
   </div>
 </header>
 
 <main id="main">
-  <!-- Hero -->
-  <section class="hero">
+  <!-- ============ HERO ============ -->
+  <section class="hero" id="hero">
+    <div class="blobs" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+    <div class="spot" aria-hidden="true"></div>
     <div class="wrap hero-grid">
       <div class="hero-copy">
-        <p class="eyebrow">Open source · runs in your browser</p>
-        <h1>One prompt.<br><span class="grad">Every AI.</span></h1>
-        <p class="lede">Relay sends your task to Claude, GPT, Gemini, AWS Bedrock and hundreds more models at once. They check each other's work, and a judge merges the best answer. Press <b>⚡ Kickstart</b> and Relay picks the orchestration for you.</p>
+        <p class="eyebrow"><span class="pulse-dot" aria-hidden="true"></span>Open source · runs in your browser</p>
+        <h1>One prompt.<br><span class="rainbow-text">Every AI.</span></h1>
+        <p class="lede">Relay sends your task to <b class="t-claude">Claude</b>, <b class="t-gpt">GPT</b>, <b class="t-gemini">Gemini</b>, <b class="t-bedrock">AWS Bedrock</b> and <b class="t-compat">hundreds more</b> at once. They check each other's work, and a judge merges the best answer.</p>
         <div class="cta-row">
-          <a class="btn btn-primary" href="app/">Open Relay</a>
-          <a class="btn btn-ghost" href="app/?demo=1">Try the demo, no keys needed</a>
+          <a class="btn btn-rainbow magnetic" href="app/">Open Relay</a>
+          <a class="btn btn-glass magnetic" href="app/?demo=1">Try the demo, no keys needed</a>
         </div>
         <ul class="hero-facts">
-          <li><b>5</b> providers + any OpenAI-compatible API</li>
-          <li><b>7</b> orchestration patterns</li>
-          <li><b>0</b> servers: your keys never leave your browser</li>
+          <li><b data-count="5">5</b><span>AI providers</span></li>
+          <li><b data-count="7">7</b><span>orchestrations</span></li>
+          <li><b data-count="3">3</b><span>cloud coding agents</span></li>
+          <li><b>0</b><span>servers</span></li>
         </ul>
+        <p class="hint-key">Press <kbd>K</kbd> anywhere to run the orchestra →</p>
       </div>
 
-      <figure class="hero-art" aria-label="Diagram: your task fans out to Claude, GPT, Gemini, AWS Bedrock and Any API in parallel; a judge merges their answers into one final answer.">
-        <svg viewBox="0 0 640 380" role="img" aria-hidden="true">
-          <defs>
-            <linearGradient id="judgeGrad" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stop-color="var(--claude)"/><stop offset=".5" stop-color="var(--gemini)"/><stop offset="1" stop-color="var(--gpt)"/>
-            </linearGradient>
-          </defs>
-          <!-- links: task → providers -->
-          <g class="links" fill="none" stroke-width="2">
-            <path class="flow f1" style="stroke:var(--claude)"  d="M150 190 C 200 190, 200 50, 250 50"/>
-            <path class="flow f2" style="stroke:var(--gpt)"     d="M150 190 C 200 190, 200 120, 250 120"/>
-            <path class="flow f3" style="stroke:var(--gemini)"  d="M150 190 L 250 190"/>
-            <path class="flow f4" style="stroke:var(--bedrock)" d="M150 190 C 200 190, 200 260, 250 260"/>
-            <path class="flow f5" style="stroke:var(--compat)"  d="M150 190 C 200 190, 200 330, 250 330"/>
-            <!-- providers → judge -->
-            <path class="flow f1" style="stroke:var(--claude)"  d="M395 50 C 440 50, 440 190, 485 190"/>
-            <path class="flow f2" style="stroke:var(--gpt)"     d="M395 120 C 440 120, 440 190, 485 190"/>
-            <path class="flow f3" style="stroke:var(--gemini)"  d="M395 190 L 485 190"/>
-            <path class="flow f4" style="stroke:var(--bedrock)" d="M395 260 C 440 260, 440 190, 485 190"/>
-            <path class="flow f5" style="stroke:var(--compat)"  d="M395 330 C 440 330, 440 190, 485 190"/>
-          </g>
-          <!-- task -->
-          <g class="node">
-            <rect x="20" y="160" width="130" height="60" rx="14"/>
-            <text x="85" y="187" class="t-strong">Your task</text>
-            <text x="85" y="206" class="t-dim">⚡ Kickstart</text>
-          </g>
-          <!-- providers -->
-          <g class="node prov" style="--c:var(--claude)"><rect x="250" y="30" width="145" height="40" rx="10"/><circle cx="270" cy="50" r="6"/><text x="284" y="55" class="t-left">Claude</text></g>
-          <g class="node prov" style="--c:var(--gpt)"><rect x="250" y="100" width="145" height="40" rx="10"/><circle cx="270" cy="120" r="6"/><text x="284" y="125" class="t-left">GPT</text></g>
-          <g class="node prov" style="--c:var(--gemini)"><rect x="250" y="170" width="145" height="40" rx="10"/><circle cx="270" cy="190" r="6"/><text x="284" y="195" class="t-left">Gemini</text></g>
-          <g class="node prov" style="--c:var(--bedrock)"><rect x="250" y="240" width="145" height="40" rx="10"/><circle cx="270" cy="260" r="6"/><text x="284" y="265" class="t-left">AWS Bedrock</text></g>
-          <g class="node prov" style="--c:var(--compat)"><rect x="250" y="310" width="145" height="40" rx="10"/><circle cx="270" cy="330" r="6"/><text x="284" y="335" class="t-left">Any API</text></g>
-          <!-- judge -->
-          <g class="node judge">
-            <rect x="485" y="150" width="135" height="80" rx="16"/>
-            <text x="552" y="183" class="t-strong">Judge</text>
-            <text x="552" y="204" class="t-dim">best final answer</text>
-          </g>
-        </svg>
-        <figcaption>Council: every connected AI answers in parallel, then a judge merges them.</figcaption>
-      </figure>
+      <!-- Interactive orchestra -->
+      <div class="orchestra glass" id="orchestra">
+        <div class="orc-top">
+          <label for="orc-task" class="sr-only">Your task</label>
+          <input id="orc-task" autocomplete="off" spellcheck="false" value="Ask all the models which database a startup should use">
+          <button type="button" class="btn btn-rainbow btn-sm" id="orc-run">▶ Run</button>
+        </div>
+        <div class="orc-pills" id="orc-pills" role="radiogroup" aria-label="Orchestration"></div>
+        <div class="orc-providers" id="orc-providers" role="group" aria-label="Connected AIs (click to toggle)"></div>
+        <div class="orc-stage" id="orc-stage">
+          <svg id="orc-svg" role="img" aria-label="Orchestration diagram"></svg>
+          <div class="orc-pop" id="orc-pop" role="dialog" aria-live="polite" hidden></div>
+        </div>
+        <div class="orc-bottom">
+          <div class="orc-stats">
+            <div><b id="st-calls">0</b><span>agent calls</span></div>
+            <div><b id="st-tokens">0</b><span>tokens</span></div>
+            <div><b id="st-time">0.0s</b><span>elapsed</span></div>
+          </div>
+          <ul class="orc-log" id="orc-log" aria-live="polite"></ul>
+        </div>
+        <div class="orc-final" id="orc-final" hidden></div>
+        <p class="orc-note">This is a simulation, and no AI is called here. Click any agent to see what it's told.</p>
+      </div>
     </div>
   </section>
 
-  <!-- Providers strip -->
-  <section class="strip" aria-label="Connects to">
-    <div class="wrap">
-      <p class="strip-label">Connects to</p>
-      <ul class="logos">
-        <li style="--c:var(--claude)">Claude</li>
-        <li style="--c:var(--gpt)">GPT</li>
-        <li style="--c:var(--gemini)">Gemini</li>
-        <li style="--c:var(--bedrock)">AWS Bedrock</li>
-        <li style="--c:var(--compat)">OpenRouter</li>
-        <li style="--c:var(--compat)">Groq</li>
-        <li style="--c:var(--compat)">Mistral</li>
-        <li style="--c:var(--compat)">DeepSeek</li>
-        <li style="--c:var(--compat)">xAI Grok</li>
-        <li style="--c:var(--compat)">Together</li>
-        <li style="--c:var(--kakao-ink)">KakaoTalk</li>
+  <!-- ============ MARQUEE ============ -->
+  <section class="marquee" aria-label="Connects to">
+    <div class="marquee-track">
+      <ul class="marquee-list">
+        <li style="--c:var(--claude)">Claude</li><li style="--c:var(--gpt)">GPT</li><li style="--c:var(--gemini)">Gemini</li><li style="--c:var(--bedrock)">AWS Bedrock</li><li style="--c:var(--compat)">OpenRouter</li><li style="--c:var(--pink)">Groq</li><li style="--c:var(--orange)">Mistral</li><li style="--c:var(--cyan)">DeepSeek</li><li style="--c:var(--text)">xAI Grok</li><li style="--c:var(--lime)">Together</li><li style="--c:#e6c800">KakaoTalk</li><li style="--c:var(--violet)">Claude Code</li><li style="--c:var(--gpt)">Codex</li><li style="--c:var(--gemini)">Gemini CLI</li>
+      </ul>
+      <ul class="marquee-list" aria-hidden="true">
+        <li style="--c:var(--claude)">Claude</li><li style="--c:var(--gpt)">GPT</li><li style="--c:var(--gemini)">Gemini</li><li style="--c:var(--bedrock)">AWS Bedrock</li><li style="--c:var(--compat)">OpenRouter</li><li style="--c:var(--pink)">Groq</li><li style="--c:var(--orange)">Mistral</li><li style="--c:var(--cyan)">DeepSeek</li><li style="--c:var(--text)">xAI Grok</li><li style="--c:var(--lime)">Together</li><li style="--c:#e6c800">KakaoTalk</li><li style="--c:var(--violet)">Claude Code</li><li style="--c:var(--gpt)">Codex</li><li style="--c:var(--gemini)">Gemini CLI</li>
       </ul>
     </div>
   </section>
 
-  <!-- How it works -->
+  <!-- ============ HOW ============ -->
   <section class="section" id="how">
     <div class="wrap">
-      <h2 class="h2">How it works</h2>
-      <p class="sub">Three steps, and the second one is optional.</p>
+      <h2 class="h2" data-reveal>Three steps. <span class="rainbow-text">That's it.</span></h2>
       <ol class="steps">
-        <li>
-          <span class="step-n">1</span>
-          <h3>Connect your AIs</h3>
-          <p>Paste the API keys you have into Settings: Claude, GPT, Gemini, AWS Bedrock, or one OpenRouter key for hundreds of models. Connect any subset. If a pipeline wants a service you don't have, a connected one stands in.</p>
-        </li>
-        <li>
-          <span class="step-n">2</span>
-          <h3>Describe the task</h3>
-          <p>Write what you want, and paste any code or text the agents need. Start with <code>ultracode:</code> to throw everything at it, or say "ask all the models" to get the Council.</p>
-        </li>
-        <li>
-          <span class="step-n">3</span>
-          <h3>Press ⚡ Kickstart</h3>
-          <p>Relay picks the cheapest orchestration that fits and runs it. You watch every agent stream live, with tokens and estimated cost, and the result can go straight to your KakaoTalk.</p>
-        </li>
+        <li data-reveal style="--c:var(--pink)"><span class="step-n">1</span><h3>Connect your AIs</h3><p>Paste the keys you have: Claude, GPT, Gemini, AWS Bedrock, or one OpenRouter key for hundreds of models. If a pipeline wants one you don't have, a connected AI stands in.</p></li>
+        <li data-reveal style="--c:var(--gemini)"><span class="step-n">2</span><h3>Describe the task</h3><p>Paste any code or text the agents need. Start with <code>ultracode:</code> to throw everything at it, or say "ask all the models" for the Council.</p></li>
+        <li data-reveal style="--c:var(--gpt)"><span class="step-n">3</span><h3>Press ⚡ Kickstart</h3><p>Relay picks the cheapest orchestration that fits and runs it. Every agent streams live, with tokens and cost, and the result can go straight to your KakaoTalk.</p></li>
       </ol>
     </div>
   </section>
 
-  <!-- Router playground -->
-  <section class="section alt" id="router">
+  <!-- ============ ROUTER ============ -->
+  <section class="section tint-violet" id="router">
     <div class="wrap router-grid">
-      <div>
-        <h2 class="h2">Try the router</h2>
-        <p class="sub">Kickstart reads your task and chooses the lowest rung that fits, because running everything at maximum effort is the most expensive habit in AI work. This box runs the same code as the app.</p>
-        <div class="examples" id="rt-examples" aria-label="Example tasks"></div>
-      </div>
-      <div class="router card">
+      <div data-reveal>
+        <h2 class="h2">Watch the router think</h2>
+        <p class="sub">⚡ Kickstart reads your task and climbs only as high up the ladder as it needs to. This runs the same code as the app, so type anything.</p>
         <label for="rt-input" class="label">Describe a task</label>
         <textarea id="rt-input" rows="3" placeholder="e.g. migrate every component under src/ to TypeScript, about 40 files"></textarea>
-        <div class="rt-result" id="rt-result" aria-live="polite">
-          <p class="rt-empty">Type a task, or pick an example.</p>
+        <div class="examples" id="rt-examples" aria-label="Example tasks"></div>
+        <div class="rt-result" id="rt-result" aria-live="polite"></div>
+      </div>
+      <div class="ladder glass" data-reveal aria-label="The orchestration ladder">
+        <div class="ladder-marker" id="ladder-marker" aria-hidden="true"></div>
+        <ol id="ladder"></ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PIPELINES ============ -->
+  <section class="section" id="pipelines">
+    <div class="wrap">
+      <h2 class="h2" data-reveal>Seven ways to <span class="rainbow-text">orchestrate</span></h2>
+      <p class="sub" data-reveal>Hover a card to tilt it, then press ▶ to watch that pipeline run in the orchestra above. In the app, every pipeline is editable, stage by stage.</p>
+      <div class="cards" id="pcards"></div>
+    </div>
+  </section>
+
+  <!-- ============ COST ============ -->
+  <section class="section tint-sun" id="cost">
+    <div class="wrap">
+      <h2 class="h2" data-reveal>What will it <span class="rainbow-text">cost?</span></h2>
+      <p class="sub" data-reveal>Drag the sliders. Higher rungs buy more checking with more calls, so start low and climb only when a task needs it.</p>
+      <div class="cost-grid">
+        <div class="card cost-controls" data-reveal>
+          <label class="range"><span>Your prompt <output id="o-in">400</output> words</span><input type="range" id="c-in" min="50" max="5000" step="50" value="400"></label>
+          <label class="range"><span>Each answer <output id="o-out">600</output> words</span><input type="range" id="c-out" min="100" max="3000" step="50" value="600"></label>
+          <label class="range"><span>Fan-out items <output id="o-items">6</output></span><input type="range" id="c-items" min="2" max="12" step="1" value="6"></label>
+          <label class="range"><span>Connected AIs (Council) <output id="o-ais">5</output></span><input type="range" id="c-ais" min="1" max="5" step="1" value="5"></label>
+          <div class="seg" role="radiogroup" aria-label="Model tier">
+            <button type="button" role="radio" aria-checked="true" data-tier="top">Top models</button>
+            <button type="button" role="radio" aria-checked="false" data-tier="fast">Fast models</button>
+          </div>
+          <p class="fine">Rough estimate. Top means Claude Opus 5 ($5/$25) and GPT‑6 Astra ($10/$50) per million input/output tokens. Fast means Sonnet 5 ($2/$10) and GPT‑5.6 Terra ($2/$12). Reasoning tokens can add more.</p>
+        </div>
+        <div class="card cost-bars" id="cost-bars" data-reveal aria-live="polite"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CLOUD ============ -->
+  <section class="section dark" id="cloud">
+    <div class="blobs dim" aria-hidden="true"><span></span><span></span><span></span></div>
+    <div class="wrap cloud-grid">
+      <div data-reveal>
+        <p class="eyebrow on-dark">Cloud agents</p>
+        <h2 class="h2">Real coding agents, <span class="rainbow-text">side by side</span></h2>
+        <p class="sub on-dark">One click sends your task to GitHub Actions, where these agents work on it at the same time. Then Claude merges their answers.</p>
+        <ul class="agent-list">
+          <li style="--c:var(--claude)"><b>Claude Code</b><span>with ultracode on: xhigh effort plus multi-agent workflows, through the Anthropic API or AWS Bedrock</span></li>
+          <li style="--c:var(--gpt)"><b>OpenAI Codex</b><span>at xhigh reasoning effort</span></li>
+          <li style="--c:var(--gemini)"><b>Google Gemini CLI</b><span>on the same task, in parallel</span></li>
+        </ul>
+        <p class="note on-dark">Only the repository owner can start a run, and each agent runs only if its key is saved as a repository secret.</p>
+      </div>
+      <div class="issue" data-reveal>
+        <div class="issue-head">
+          <span class="issue-state" id="issue-state">Open</span>
+          <b>Cloud run: design a production rate limiter</b>
+          <span class="issue-num">#42</span>
+        </div>
+        <ol class="thread" id="thread"><li class="thread-empty">Press play to watch a cloud run.</li></ol>
+        <div class="issue-foot">
+          <button type="button" class="btn btn-rainbow btn-sm" id="cloud-sim">▶ Simulate a cloud run</button>
+          <span class="labels" id="issue-labels"><span class="gh-label l-run">agent-run</span></span>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- Pipelines -->
-  <section class="section" id="pipelines">
-    <div class="wrap">
-      <h2 class="h2">Seven ways to orchestrate</h2>
-      <p class="sub">Every pipeline is editable: add stages, pick models per stage, and change the prompts. You can also export and import pipelines as JSON.</p>
-      <div class="cards">
-        <article class="pcard">
-          <header><h3>Solo</h3><span class="calls">1 call</span></header>
-          <div class="flowline"><span class="chip c-claude">Claude</span></div>
-          <p>One agent. The lowest rung, and enough for most tasks.</p>
-        </article>
-        <article class="pcard">
-          <header><h3>Compare</h3><span class="calls">2 calls</span></header>
-          <div class="flowline"><span class="chip c-claude">Claude</span><span class="par">‖</span><span class="chip c-gpt">GPT</span></div>
-          <p>Two independent answers side by side, for a second opinion.</p>
-        </article>
-        <article class="pcard">
-          <header><h3>Relay</h3><span class="calls">3 calls</span></header>
-          <div class="flowline"><span class="chip c-claude">Draft</span><span class="arr">→</span><span class="chip c-gpt">Attack</span><span class="arr">→</span><span class="chip c-claude">Revise</span></div>
-          <p>A different lab attacks the draft before you see it. Good for high-stakes work.</p>
-        </article>
-        <article class="pcard">
-          <header><h3>Debate</h3><span class="calls">5 calls</span></header>
-          <div class="flowline"><span class="chip c-claude">Answer</span><span class="par">‖</span><span class="chip c-gpt">Answer</span><span class="arr">→</span><span class="chip c-mix">Cross-examine</span><span class="arr">→</span><span class="chip c-claude">Judge</span></div>
-          <p>For audits and anything that has to be verified, not just confidently stated.</p>
-        </article>
-        <article class="pcard">
-          <header><h3>Fan-out</h3><span class="calls">N + 3 calls</span></header>
-          <div class="flowline"><span class="chip c-claude">Plan</span><span class="arr">→</span><span class="chip c-mix">N workers</span><span class="arr">→</span><span class="chip c-gpt">Refute</span><span class="arr">→</span><span class="chip c-claude">Merge</span></div>
-          <p>Many similar items handled the same way, like docs for every service or a review of every file.</p>
-        </article>
-        <article class="pcard hl">
-          <header><h3>Council</h3><span class="calls">every AI + 1</span></header>
-          <div class="flowline"><span class="chip c-all">Every connected AI</span><span class="arr">→</span><span class="chip c-claude">Judge</span></div>
-          <p>Breadth and consensus: where models agree, it's likely right. Where they disagree, the judge decides.</p>
-        </article>
-        <article class="pcard hl">
-          <header><h3>Ultra</h3><span class="calls">N + 7 calls</span></header>
-          <div class="flowline"><span class="chip c-claude">Plan</span><span class="arr">→</span><span class="chip c-mix">Workers</span><span class="arr">→</span><span class="chip c-mix">2 refuters</span><span class="arr">→</span><span class="chip c-claude">Merge</span><span class="arr">→</span><span class="chip c-gpt">Attack</span><span class="arr">→</span><span class="chip c-claude">Fix</span></div>
-          <p>Both vendors at every step, at xhigh effort. For when it has to be right. Triggered by <code>ultracode:</code>.</p>
-        </article>
+  <!-- ============ KAKAO + TRUST ============ -->
+  <section class="section" id="kakao">
+    <div class="wrap kakao-grid">
+      <div class="phone" data-reveal>
+        <div class="phone-notch" aria-hidden="true"></div>
+        <div class="phone-top"><span>‹</span><b>나와의 채팅</b><span class="badge" id="kk-badge" hidden>1</span></div>
+        <div class="chat" id="chat" aria-live="polite">
+          <div class="day">Today</div>
+          <div class="bubble me">ultracode: design a rate limiter 🙏</div>
+        </div>
+        <button type="button" class="kakao-btn" id="kakao-sim">Send me the result</button>
+      </div>
+      <div data-reveal>
+        <h2 class="h2">Results in your <span class="kakao-text">KakaoTalk</span></h2>
+        <p class="sub">Connect KakaoTalk once and Relay messages you whenever a run finishes. Every final answer also gets a one-tap KakaoTalk button. Try the phone.</p>
+        <div class="trust">
+          <div class="tcard" style="--c:var(--gpt)"><b>🔒 No server</b><span>Your keys stay in your browser and go straight to each AI vendor.</span></div>
+          <div class="tcard" style="--c:var(--gemini)"><b>🧹 Keys stay local</b><span>By default they last only for the tab. Saving them is opt-in.</span></div>
+          <div class="tcard" style="--c:var(--violet)"><b>🛡️ Locked down</b><span>A strict Content-Security-Policy blocks other scripts, and every AI answer is sanitized before it's shown.</span></div>
+          <div class="tcard" style="--c:var(--orange)"><b>💸 Spend guards</b><span>Cap calls, fan-out size and concurrency, and stop any run instantly.</span></div>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- Cloud agents -->
-  <section class="section dark" id="cloud">
-    <div class="wrap cloud-grid">
-      <div>
-        <p class="eyebrow on-dark">Cloud agents</p>
-        <h2 class="h2">Real coding agents, working in parallel</h2>
-        <p class="sub on-dark">One click sends your task to <b>GitHub Actions</b>, where these agents work on it at the same time. Then Claude merges their answers. Each result arrives as a comment on a GitHub issue.</p>
-        <ul class="agent-list">
-          <li><span class="dot" style="--c:var(--claude)"></span><b>Claude Code</b> with <b>ultracode</b> on: xhigh effort plus multi-agent workflows, through the Anthropic API or AWS Bedrock</li>
-          <li><span class="dot" style="--c:var(--gpt)"></span><b>OpenAI Codex</b> at xhigh reasoning effort</li>
-          <li><span class="dot" style="--c:var(--gemini)"></span><b>Google Gemini CLI</b></li>
-        </ul>
-        <p class="note on-dark">Only the repository owner can start a run, and each agent runs only if its key is saved as a repository secret. The <code>ultracode:</code> keyword works only when a person types it into Claude Code, so the cloud agents turn ultracode on through its documented setting.</p>
-      </div>
-      <ol class="pipeline-steps" aria-label="Cloud run steps">
-        <li><span>1</span><div><b>Send task</b><small>The app opens a prefilled GitHub issue. You click Create.</small></div></li>
-        <li><span>2</span><div><b>Agents run in parallel</b><small>Claude Code (ultracode) · Codex · Gemini CLI</small></div></li>
-        <li><span>3</span><div><b>Claude merges</b><small>It notes what each got right or wrong, then writes the single best answer.</small></div></li>
-        <li><span>4</span><div><b>Done ✅</b><small>Comments on the issue, and the run list in the app updates.</small></div></li>
-      </ol>
-    </div>
-  </section>
-
-  <!-- KakaoTalk + security -->
-  <section class="section" id="trust">
-    <div class="wrap two">
-      <div class="card kakao">
-        <div class="kakao-badge" aria-hidden="true">TALK</div>
-        <h2 class="h3">Results in your KakaoTalk</h2>
-        <p>Connect KakaoTalk once and Relay messages you ("나와의 채팅") whenever a run finishes. Every final answer also gets a one-tap <b>KakaoTalk</b> button.</p>
-      </div>
-      <div class="card">
-        <h2 class="h3">Private by design</h2>
-        <ul class="checks">
-          <li><b>No server.</b> Relay is a static page. Your keys stay in your browser and go straight to each AI vendor.</li>
-          <li><b>Keys stay local.</b> By default they last only for the tab; saving them on the device is opt-in.</li>
-          <li><b>Locked down.</b> A strict Content-Security-Policy blocks other scripts, and every AI answer is sanitized before it's shown.</li>
-          <li><b>Spend guards.</b> You can cap agent calls per run, cap fan-out size and concurrency, and stop any run instantly.</li>
-        </ul>
-      </div>
-    </div>
-  </section>
-
-  <!-- Setup -->
-  <section class="section alt" id="setup">
+  <!-- ============ SETUP ============ -->
+  <section class="section tint-mint" id="setup">
     <div class="wrap narrow">
-      <h2 class="h2">Setup</h2>
-      <p class="sub">Each part takes a few minutes, and you only need the parts you want.</p>
-
-      <details class="acc" open>
-        <summary>Connect AI keys (in the app)</summary>
+      <h2 class="h2" data-reveal>Setup</h2>
+      <p class="sub" data-reveal>Each part takes a few minutes, and you only need the parts you want.</p>
+      <details class="acc" style="--c:var(--pink)" open>
+        <summary>🔑 Connect AI keys (in the app)</summary>
         <ol>
           <li>Open <a href="app/">the app</a>, then click <b>Settings</b>.</li>
           <li>Paste any keys you have, then click <b>Test &amp; load models</b> for each:
@@ -271,9 +236,8 @@
           <li>Click <b>Save</b>, untick <b>Demo</b>, and press <b>⚡ Kickstart</b>.</li>
         </ol>
       </details>
-
-      <details class="acc">
-        <summary>Turn on cloud agents (GitHub)</summary>
+      <details class="acc" style="--c:var(--gemini)">
+        <summary>☁️ Turn on cloud agents (GitHub)</summary>
         <ol>
           <li>Open the repo's <a href="https://github.com/speddiikga-code/relay/settings/secrets/actions" rel="noopener">Actions secrets</a> page.</li>
           <li>Add any of these secrets. Each one switches on its agent:
@@ -287,9 +251,8 @@
           <li>In the app, write a task and click <b>Send task to cloud agents</b>.</li>
         </ol>
       </details>
-
-      <details class="acc">
-        <summary>Connect KakaoTalk</summary>
+      <details class="acc" style="--c:#e6c800">
+        <summary>💬 Connect KakaoTalk</summary>
         <ol>
           <li>Create an app at <a href="https://developers.kakao.com/console/app" rel="noopener">developers.kakao.com</a>.</li>
           <li>Under <b>Platform → Web</b>, add the site domain <code>https://speddiikga-code.github.io</code>.</li>
@@ -301,37 +264,38 @@
     </div>
   </section>
 
-  <!-- FAQ -->
+  <!-- ============ FAQ ============ -->
   <section class="section" id="faq">
     <div class="wrap narrow">
-      <h2 class="h2">Questions</h2>
-      <details class="acc">
+      <h2 class="h2" data-reveal>Questions</h2>
+      <details class="acc" style="--c:var(--claude)">
         <summary>Is this really Claude Code's ultracode?</summary>
-        <p>Two different things are involved. <b>In the browser</b>, Relay runs its own orchestration (the pipelines above) directly against the model APIs. <b>In the cloud agents</b>, it runs the real Claude Code CLI with the documented <code>ultracode</code> setting turned on. The typed <code>ultracode:</code> keyword works only when a person types it into Claude Code, by design, so no website can trigger it.</p>
+        <p><b>In the browser</b>, Relay runs its own orchestration (the pipelines above) directly against the model APIs. <b>In the cloud agents</b>, it runs the real Claude Code CLI with the documented <code>ultracode</code> setting turned on. The typed <code>ultracode:</code> keyword works only when a person types it into Claude Code, by design, so no website can trigger it.</p>
       </details>
-      <details class="acc">
+      <details class="acc" style="--c:var(--gpt)">
         <summary>What does it cost?</summary>
-        <p>Relay itself is free. You pay each AI provider for the tokens your runs use, on your own keys. The app shows tokens and an estimated cost per agent and per run. Start with Solo, and move up the ladder only when a task needs it.</p>
+        <p>Relay itself is free. You pay each AI provider for the tokens your runs use, on your own keys. The app shows tokens and an estimated cost per agent and per run. Try the calculator above.</p>
       </details>
-      <details class="acc">
+      <details class="acc" style="--c:var(--gemini)">
         <summary>Can it read my files or my repository?</summary>
         <p>The browser app can't. Paste in what the agents need. The cloud agents can read the repository they run in (read-only), and they answer in comments rather than pushing code.</p>
       </details>
-      <details class="acc">
+      <details class="acc" style="--c:var(--violet)">
         <summary>Can other people use my keys?</summary>
         <p>No. Your keys are stored only in your own browser, so visitors to the site use their own. Cloud runs start only for the repository owner.</p>
       </details>
     </div>
   </section>
 
-  <!-- Final CTA -->
+  <!-- ============ FINAL CTA ============ -->
   <section class="final-cta">
+    <div class="blobs" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
     <div class="wrap">
-      <h2>Stop asking one AI.</h2>
-      <p>Open Relay and put all of them on your task.</p>
-      <div class="cta-row center">
-        <a class="btn btn-primary" href="app/">Open Relay</a>
-        <a class="btn btn-ghost" href="app/?demo=1">Try the demo</a>
+      <h2 data-reveal>Stop asking <span class="strike">one</span> AI.</h2>
+      <p data-reveal>Put all of them on your task.</p>
+      <div class="cta-row center" data-reveal>
+        <a class="btn btn-rainbow magnetic" href="app/">Open Relay</a>
+        <button type="button" class="btn btn-glass magnetic" id="party">🎉 Celebrate</button>
       </div>
     </div>
   </section>
