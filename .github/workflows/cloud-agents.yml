@@ -349,3 +349,87 @@ jobs:
               await github.rest.issues.createComment({ ...context.repo, issue_number, body: '✅ Done. (No merge: add ANTHROPIC_API_KEY or AWS_BEARER_TOKEN_BEDROCK to have Claude merge the answers.)' });
             }
             await github.rest.issues.addLabels({ ...context.repo, issue_number, labels: ['agent-done'] });
+
+      # --------------------------------------------------------------------
+      # KakaoTalk notification.
+      #
+      # Browser runs already notify via the app (app.js kakaoSend). Cloud runs
+      # did not, which is the case where it actually matters: an ultracode run
+      # takes minutes, so you start it and walk away.
+      #
+      # Sends to the repo owner's own KakaoTalk ("send to me" / talk_message).
+      # Only the owner can start a run, so the owner is the only recipient.
+      #
+      # One-time setup — Settings → Secrets and variables → Actions:
+      #   KAKAO_REST_KEY        the Kakao app's REST API key
+      #   KAKAO_REFRESH_TOKEN   a refresh token with the talk_message scope
+      #   KAKAO_CLIENT_SECRET   optional, only if the app requires it
+      #
+      # Get the refresh token by connecting KakaoTalk once in the Relay app,
+      # then copying it from Settings. Access tokens expire in hours, so this
+      # step trades the refresh token for a fresh one on every run.
+      #
+      # Skipped entirely when the secrets are absent, matching how every other
+      # agent in this workflow is optional.
+      - name: Notify on KakaoTalk
+        if: always()
+        continue-on-error: true
+        env:
+          KAKAO_REST_KEY: ${{ secrets.KAKAO_REST_KEY }}
+          KAKAO_REFRESH_TOKEN: ${{ secrets.KAKAO_REFRESH_TOKEN }}
+          KAKAO_CLIENT_SECRET: ${{ secrets.KAKAO_CLIENT_SECRET }}
+          ISSUE: ${{ needs.start.outputs.issue }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -u
+          if [ -z "${KAKAO_REST_KEY:-}" ] || [ -z "${KAKAO_REFRESH_TOKEN:-}" ]; then
+            echo "KakaoTalk secrets not set — skipping notification."
+            exit 0
+          fi
+
+          # Refresh the access token. Kakao access tokens are short-lived, so a
+          # stored one would be stale by the time a run finishes.
+          ACCESS=$(curl -sS -X POST 'https://kauth.kakao.com/oauth/token' \
+            -H 'Content-Type: application/x-www-form-urlencoded;charset=utf-8' \
+            --data-urlencode "grant_type=refresh_token" \
+            --data-urlencode "client_id=${KAKAO_REST_KEY}" \
+            --data-urlencode "refresh_token=${KAKAO_REFRESH_TOKEN}" \
+            ${KAKAO_CLIENT_SECRET:+--data-urlencode "client_secret=${KAKAO_CLIENT_SECRET}"} \
+            | jq -r '.access_token // empty')
+
+          if [ -z "$ACCESS" ]; then
+            echo "Could not refresh the Kakao token. The refresh token may have expired — reconnect in the Relay app and update KAKAO_REFRESH_TOKEN."
+            exit 0
+          fi
+
+          # Kakao's text template caps at 200 characters, so send a short
+          # summary and let the button carry them to the full answer.
+          # TASK is untrusted text and only ever reaches this through the env,
+          # never through ${{ }} interpolation.
+          SUMMARY=$(printf '%s' "$TASK" | tr '\n' ' ' | cut -c1-90)
+          STATUS_LINE="Cloud agents finished"
+          [ "${JOB_STATUS:-success}" != "success" ] && STATUS_LINE="Cloud agents finished with errors"
+
+          LINK="${REPO_URL}/issues/${ISSUE}"
+          TEXT=$(printf '%s\n\n%s\n\nTap to read the merged answer.' "$STATUS_LINE" "$SUMMARY")
+
+          TEMPLATE=$(jq -n --arg t "$TEXT" --arg u "$LINK" '{
+            object_type: "text",
+            text: $t,
+            link: { web_url: $u, mobile_web_url: $u },
+            button_title: "Read the answer"
+          }')
+
+          CODE=$(curl -sS -o /tmp/kakao.json -w '%{http_code}' \
+            -X POST 'https://kapi.kakao.com/v2/api/talk/memo/default/send' \
+            -H "Authorization: Bearer ${ACCESS}" \
+            -H 'Content-Type: application/x-www-form-urlencoded;charset=utf-8' \
+            --data-urlencode "template_object=${TEMPLATE}")
+
+          if [ "$CODE" = "200" ]; then
+            echo "KakaoTalk notification sent."
+          else
+            echo "KakaoTalk send failed (HTTP $CODE):"
+            cat /tmp/kakao.json
+          fi

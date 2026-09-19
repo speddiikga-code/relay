@@ -64,6 +64,17 @@ Then **Claude merges** every answer: what each got right or wrong, then the sing
 | `AWS_BEARER_TOKEN_BEDROCK` | Claude Code through AWS Bedrock, used when there's no Anthropic key |
 | `OPENAI_API_KEY` | Codex |
 | `GEMINI_API_KEY` | Gemini CLI |
+| `KAKAO_REST_KEY` | KakaoTalk message when a **cloud** run finishes |
+| `KAKAO_REFRESH_TOKEN` | Same — a refresh token carrying the `talk_message` scope |
+| `KAKAO_CLIENT_SECRET` | Same — only if your Kakao app requires a client secret |
+
+Browser runs already message you through the app. The three `KAKAO_*` secrets add
+the same thing to **cloud** runs, which is the case where it matters: an ultracode
+run takes minutes, so you start it and walk away. To get the refresh token, connect
+KakaoTalk once in the app, then copy it from Settings. Access tokens expire within
+hours, so the workflow trades the refresh token for a fresh one on every run; if the
+refresh token itself expires, reconnect in the app and update the secret. Leave these
+unset and the step is skipped silently, like every other optional agent.
 
 Optional repository variables override the defaults: `CLAUDE_MODEL` (`claude-opus-5`), `CODEX_MODEL` (`gpt-6-astra`), `GEMINI_MODEL` (`gemini-3.8-flash`), `AWS_REGION` (`us-east-1`) and `BEDROCK_CLAUDE_MODEL` (`us.anthropic.claude-opus-5`).
 
