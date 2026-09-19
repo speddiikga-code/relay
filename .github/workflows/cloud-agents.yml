@@ -435,3 +435,61 @@ jobs:
             echo "KakaoTalk send failed (HTTP $CODE):"
             cat /tmp/kakao.json
           fi
+
+      # --------------------------------------------------------------------
+      # Telegram notification.
+      #
+      # Parallel to the KakaoTalk step, and the practical fallback when Kakao
+      # is unavailable — a blocked Kakao Developers account, or not wanting to
+      # wait on channel review. Telegram needs no review and no business
+      # verification: a bot token from @BotFather is enough.
+      #
+      # One-time setup — Settings → Secrets and variables → Actions:
+      #   TELEGRAM_BOT_TOKEN   from @BotFather in Telegram
+      #   TELEGRAM_CHAT_ID     your own chat id (see the README)
+      #
+      # Skipped when the secrets are absent, like every other optional step.
+      - name: Notify on Telegram
+        if: always()
+        continue-on-error: true
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          ISSUE: ${{ needs.start.outputs.issue }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -u
+          if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
+            echo "Telegram secrets not set — skipping notification."
+            exit 0
+          fi
+
+          STATUS_LINE="Cloud agents finished"
+          [ "${JOB_STATUS:-success}" != "success" ] && STATUS_LINE="Cloud agents finished with errors"
+
+          LINK="${REPO_URL}/issues/${ISSUE}"
+
+          # TASK is untrusted text and reaches this only through the env block
+          # above. Telegram accepts 4096 characters, far more than Kakao's 200,
+          # so the summary can be generous.
+          SUMMARY=$(printf '%s' "$TASK" | tr '\n' ' ' | cut -c1-300)
+
+          # jq builds the JSON so any quotes or backslashes in the task are
+          # escaped properly rather than breaking the payload.
+          PAYLOAD=$(jq -n \
+            --arg chat "$TELEGRAM_CHAT_ID" \
+            --arg text "$(printf '%s\n\n%s\n\n%s' "$STATUS_LINE" "$SUMMARY" "$LINK")" \
+            '{chat_id: $chat, text: $text, disable_web_page_preview: false}')
+
+          CODE=$(curl -sS -o /tmp/tg.json -w '%{http_code}' \
+            -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -H 'Content-Type: application/json' \
+            -d "$PAYLOAD")
+
+          if [ "$CODE" = "200" ]; then
+            echo "Telegram notification sent."
+          else
+            echo "Telegram send failed (HTTP $CODE):"
+            cat /tmp/tg.json
+          fi

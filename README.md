@@ -67,6 +67,8 @@ Then **Claude merges** every answer: what each got right or wrong, then the sing
 | `KAKAO_REST_KEY` | KakaoTalk message when a **cloud** run finishes |
 | `KAKAO_REFRESH_TOKEN` | Same — a refresh token carrying the `talk_message` scope |
 | `KAKAO_CLIENT_SECRET` | Same — only if your Kakao app requires a client secret |
+| `TELEGRAM_BOT_TOKEN` | Telegram message when a **cloud** run finishes |
+| `TELEGRAM_CHAT_ID` | Same — the chat to send to |
 
 Browser runs already message you through the app. The three `KAKAO_*` secrets add
 the same thing to **cloud** runs, which is the case where it matters: an ultracode
@@ -75,6 +77,24 @@ app → Settings → KakaoTalk → **Connect KakaoTalk**, then press **Copy refr
 hours, so the workflow trades the refresh token for a fresh one on every run; if the
 refresh token itself expires, reconnect in the app and update the secret. Leave these
 unset and the step is skipped silently, like every other optional agent.
+
+**Telegram instead of KakaoTalk.** Kakao requires a Developers account in good
+standing, and a KakaoTalk *channel* with chatbot approval if you ever want to
+message the bot rather than just receive from it. Telegram needs neither — no
+review, no business verification — and its bots can receive messages too. Setup:
+
+1. Message **@BotFather** in Telegram, send `/newbot`, follow the prompts. It
+   gives you a token like `123456:ABC-DEF...` → that's `TELEGRAM_BOT_TOKEN`.
+2. Send your new bot any message (it can't message you first — Telegram requires
+   you to open the conversation).
+3. Open `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates` in a browser and
+   read `result[0].message.chat.id` → that's `TELEGRAM_CHAT_ID`.
+
+Both notifications are independent: set either, both, or neither.
+
+**No secrets at all?** Install **GitHub Mobile** and watch this repo. Agents post
+their answers as issue comments, so you get a push notification with no keys and
+no third-party service.
 
 Optional repository variables override the defaults: `CLAUDE_MODEL` (`claude-opus-5`), `CODEX_MODEL` (`gpt-6-astra`), `GEMINI_MODEL` (`gemini-3.8-flash`), `AWS_REGION` (`us-east-1`) and `BEDROCK_CLAUDE_MODEL` (`us.anthropic.claude-opus-5`).
 
