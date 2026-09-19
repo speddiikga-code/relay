@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'">
+<meta name="referrer" content="no-referrer">
+<title>Relay: pricing</title>
+<meta name="description" content="Relay is free and open source, and you bring your own API keys. Paid plans cover cloud agent runs we pay for, and business support.">
+<meta property="og:title" content="Relay: pricing">
+<meta property="og:description" content="Free forever with your own keys. Paid plans cover cloud agent runs on our credit, and business invoicing and support.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://speddiikga-code.github.io/relay/pricing.html">
+<meta name="theme-color" content="#0d0c12">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23ff3d8b'/%3E%3Cstop offset='.5' stop-color='%232f6bff'/%3E%3Cstop offset='1' stop-color='%2310a37f'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Cpath d='M8 12h14l-3.5-3.5M24 20H10l3.5 3.5' stroke='%23fff' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="site.css?v=6">
+<script src="pricing.js?v=1" defer></script>
+<style>
+  /* Pricing-only components. Everything here uses site.css tokens so the page
+     stays in the same visual system as the landing page. */
+  .price-head { text-align: center; max-width: 42rem; margin: 0 auto 2rem; }
+  .price-head p { color: var(--muted); }
+
+  .cur-toggle { display: inline-flex; gap: 2px; padding: 3px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; }
+  .cur-toggle button {
+    font: inherit; font-size: .86rem; padding: .28rem .85rem; border: 0; border-radius: 999px;
+    background: transparent; color: var(--muted); cursor: pointer;
+  }
+  .cur-toggle button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+
+  .tiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1rem; align-items: start; }
+  .tier {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 1.4rem; display: flex; flex-direction: column; gap: .9rem; min-width: 0;
+  }
+  .tier.featured { border-color: transparent; box-shadow: var(--shadow); position: relative; }
+  .tier.featured::before {
+    content: ""; position: absolute; inset: -1px; border-radius: var(--radius);
+    background: var(--rainbow); z-index: -1;
+  }
+  .tier-name { font-weight: 700; font-size: 1.05rem; display: flex; align-items: center; gap: .5rem; }
+  .tier-for { font-size: .78rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  .tier-price { font-size: 2rem; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .tier-price small { font-size: .86rem; font-weight: 400; color: var(--muted); }
+  .tier ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .45rem; font-size: .92rem; }
+  .tier li { display: grid; grid-template-columns: 1.1rem 1fr; gap: .45rem; align-items: start; }
+  .tier li::before { content: "✓"; color: var(--gpt); font-weight: 700; }
+  .tier li.no::before { content: "–"; color: var(--muted); }
+  .tier .spacer { flex: 1; }
+
+  .byok {
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 1.1rem 1.3rem; margin: 0 0 2rem;
+  }
+  .byok p { margin: 0 0 .5rem; }
+  .byok p:last-child { margin: 0; }
+
+  .legal { font-size: .84rem; color: var(--muted); }
+  .legal dl { display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1rem; margin: .6rem 0 0; }
+  .legal dt { font-weight: 600; color: var(--text); }
+  .legal dd { margin: 0; }
+
+  .todo {
+    border-left: 3px solid var(--bedrock); background: var(--surface-2);
+    padding: .8rem 1rem; border-radius: 8px; font-size: .88rem; margin: 1rem 0;
+  }
+  .todo b { color: var(--bedrock); }
+
+  .faq { display: grid; gap: .6rem; }
+  .faq details { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: .8rem 1rem; }
+  .faq summary { cursor: pointer; font-weight: 600; }
+  .faq p { margin: .6rem 0 0; color: var(--muted); font-size: .93rem; }
+  .faq p:last-child { margin-bottom: 0; }
+
+  @media (max-width: 560px) { .tier-price { font-size: 1.7rem; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="nav" id="top">
+  <div class="wrap nav-inner">
+    <a class="brand" href="index.html"><span class="logo" aria-hidden="true">⇄</span>Relay</a>
+    <nav class="nav-links" aria-label="Sections">
+      <a href="index.html#pipelines">Pipelines</a>
+      <a href="index.html#cost">Cost</a>
+      <a href="index.html#cloud">Cloud</a>
+      <a href="pricing.html" aria-current="page">Pricing</a>
+    </nav>
+    <button type="button" class="icon-btn" id="theme-toggle" aria-label="Theme: auto" title="Switch theme">◐</button>
+    <a class="btn btn-rainbow btn-sm magnetic" href="app/">Open the app</a>
+  </div>
+</header>
+
+<main id="main">
+  <section class="wrap" style="padding-block: 3rem 1rem;">
+    <div class="price-head">
+      <p class="eyebrow">Pricing</p>
+      <h1 class="h2">Free with your own keys. Pay only for what we run for you.</h1>
+      <p>Relay is open source and runs in your browser. The paid plans exist for one honest reason: cloud agent runs cost us real API credit.</p>
+      <p style="margin-top:1rem"><span class="cur-toggle" role="group" aria-label="Currency">
+        <button type="button" data-cur="krw" aria-pressed="true">₩ KRW</button>
+        <button type="button" data-cur="usd" aria-pressed="false">$ USD</button>
+      </span></p>
+    </div>
+  </section>
+
+  <section class="wrap" style="padding-block: 0 1rem;">
+    <div class="byok">
+      <p><strong>Read this before you pay anything.</strong> Relay is <em>bring your own key</em>. In the browser app you paste your own Anthropic, OpenAI, Gemini or Bedrock key, and <strong>you pay those vendors directly</strong> at their rates. Relay never takes a cut of that and never sees those keys.</p>
+      <p>So the Free plan is genuinely the whole product, not a crippled demo. What the paid plans buy is <strong>cloud agent runs that spend our API credit instead of yours</strong>, plus the support and paperwork a company needs.</p>
+    </div>
+  </section>
+
+  <section class="wrap" style="padding-block: 0 2rem;">
+    <div class="tiers">
+
+      <!-- ---------- FREE ---------- -->
+      <div class="tier">
+        <div>
+          <span class="tier-for">Individual</span>
+          <div class="tier-name">Free</div>
+        </div>
+        <div class="tier-price" data-price="free">₩0<small> forever</small></div>
+        <ul>
+          <li>The full browser app</li>
+          <li>All six pipelines, fully editable</li>
+          <li>Claude, GPT, Gemini, Bedrock, any OpenAI-compatible API</li>
+          <li>KakaoTalk delivery</li>
+          <li>Auto-router and cost estimates</li>
+          <li>Open source — fork it, self-host it</li>
+          <li class="no">Cloud agent runs use your own keys</li>
+        </ul>
+        <div class="spacer"></div>
+        <a class="btn btn-glass" href="app/">Open the app</a>
+        <p class="fine">No account. No card. Keys stay in your browser.</p>
+      </div>
+
+      <!-- ---------- CLOUD ---------- -->
+      <div class="tier featured">
+        <div>
+          <span class="tier-for">Individual · B2C</span>
+          <div class="tier-name">Cloud <span class="badge">Waitlist</span></div>
+        </div>
+        <div class="tier-price" data-price="cloud"><span data-krw>₩19,000</span><small> / month</small></div>
+        <ul>
+          <li>Everything in Free</li>
+          <li><strong>Cloud agent runs on our credit</strong> — real Claude Code (ultracode) + Codex + Gemini CLI</li>
+          <li>No key setup for cloud runs</li>
+          <li>Run history you keep across devices</li>
+          <li>Fair-use run allowance, then metered</li>
+          <li>Email support</li>
+        </ul>
+        <div class="spacer"></div>
+        <a class="btn btn-rainbow magnetic" href="#waitlist" data-checkout="cloud">Join the waitlist</a>
+        <p class="fine">Not charging yet. Cloud runs need a server to hold the keys — see the FAQ.</p>
+      </div>
+
+      <!-- ---------- BUSINESS ---------- -->
+      <div class="tier">
+        <div>
+          <span class="tier-for">Company · B2B</span>
+          <div class="tier-name">Business</div>
+        </div>
+        <div class="tier-price" data-price="business">Talk to us</div>
+        <ul>
+          <li>Everything in Cloud</li>
+          <li>Volume cloud runs, pooled across a team</li>
+          <li><strong>세금계산서 / invoicing</strong> and PO billing</li>
+          <li>Shared private pipeline library</li>
+          <li>Self-host support and deployment help</li>
+          <li>Named contact, response-time commitment</li>
+        </ul>
+        <div class="spacer"></div>
+        <a class="btn btn-glass" href="#contact">Contact us</a>
+        <p class="fine">Korean and English. 한국어 문의 가능.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ---------- WHAT YOU STILL PAY VENDORS ---------- -->
+  <section class="wrap" style="padding-block: 1rem 2rem;">
+    <h2 class="h2">What each plan does and doesn't cover</h2>
+    <div class="table-wrap" style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr><th>&nbsp;</th><th>Free</th><th>Cloud</th><th>Business</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Browser pipelines</td><td>Your keys</td><td>Your keys</td><td>Your keys</td></tr>
+          <tr><td>Who pays the model vendors for browser runs</td><td>You</td><td>You</td><td>You</td></tr>
+          <tr><td>Cloud agent runs</td><td>Your keys</td><td><strong>We pay</strong></td><td><strong>We pay</strong></td></tr>
+          <tr><td>Invoicing / 세금계산서</td><td>—</td><td>Receipt only</td><td>Yes</td></tr>
+          <tr><td>Support</td><td>GitHub issues</td><td>Email</td><td>Named contact</td></tr>
+          <tr><td>Self-hosting</td><td>Allowed</td><td>Allowed</td><td>Assisted</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="fine">Browser runs always use your own keys, on every plan. That is the design, not a limitation — it means nobody can spend your credit and we never hold your keys.</p>
+  </section>
+
+  <!-- ---------- FAQ ---------- -->
+  <section class="wrap" style="padding-block: 1rem 2rem;" id="faq">
+    <h2 class="h2">Questions people actually ask</h2>
+    <div class="faq">
+      <details>
+        <summary>If it's open source, why would I pay?</summary>
+        <p>For the browser app, you shouldn't. It's free, it's yours, fork it. You pay only when we spend money on your behalf — cloud agent runs burn real API credit on our account — or when your company needs invoicing and a support commitment that a GitHub issue tracker can't give.</p>
+      </details>
+      <details>
+        <summary>Why is Cloud a waitlist instead of a buy button?</summary>
+        <p>Because it isn't built yet, and we'd rather say so. Cloud runs need a server to hold the API keys and meter usage. Relay today is a static site with no backend — that's why your keys never leave your browser. Adding cloud runs means adding that server, and we won't take money for it before it exists.</p>
+      </details>
+      <details>
+        <summary>Can I just fork it and remove the paywall?</summary>
+        <p>Yes, and that's fine. Everything in the browser app is free and MIT-ish by design — there is no paywall in it to remove. The only thing you can't fork is our API credit, which is the one thing the paid plans actually sell.</p>
+      </details>
+      <details>
+        <summary>Do you see my API keys?</summary>
+        <p>No. Browser keys live in your <code>sessionStorage</code> (or <code>localStorage</code> if you tick Remember) and are sent only to that provider's own API. There is no server to send them to. Set spend limits in each vendor's console, and don't tick Remember on a shared computer.</p>
+      </details>
+      <details>
+        <summary>Refunds?</summary>
+        <p>Cancel any time and the plan runs to the end of the period. For Korean consumers, the statutory withdrawal rights under 전자상거래법 apply and are not waived by anything on this page.</p>
+      </details>
+    </div>
+  </section>
+
+  <!-- ---------- LEGAL DISCLOSURE (전자상거래법) ---------- -->
+  <section class="wrap" style="padding-block: 1rem 3rem;" id="contact">
+    <h2 class="h2">Seller information</h2>
+
+    <div class="todo">
+      <b>Fill this in before taking a single won.</b> Selling to consumers in Korea requires
+      disclosing this under 전자상거래법, and you generally need 사업자등록 plus
+      통신판매업 신고 with your local 구청 first. Selling without it is a real
+      liability, not a formality. Confirm the specifics with a 세무사 or 구청 —
+      this block is a template, not legal advice.
+    </div>
+
+    <div class="legal">
+      <dl>
+        <dt>상호 / Business name</dt><dd>—</dd>
+        <dt>대표자 / Representative</dt><dd>—</dd>
+        <dt>사업자등록번호</dt><dd>—</dd>
+        <dt>통신판매업 신고번호</dt><dd>—</dd>
+        <dt>주소 / Address</dt><dd>—</dd>
+        <dt>문의 / Contact</dt><dd>—</dd>
+        <dt>호스팅 / Hosting</dt><dd>GitHub Pages</dd>
+      </dl>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="wrap foot-inner">
+    <span><span class="logo sm" aria-hidden="true">⇄</span> Relay · a static site with no server and no tracking</span>
+    <span><a href="https://github.com/speddiikga-code/relay" rel="noopener">Source on GitHub</a> · <a href="app/">App</a> · <a href="index.html">Home</a> · <a href="#top">Back to top</a></span>
+  </div>
+</footer>
+</body>
+</html>
