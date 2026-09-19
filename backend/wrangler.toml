@@ -1,0 +1,24 @@
+# Cloudflare Workers. Chosen for one reason that matters here: Kakao drops a
+# skill connection after 5 seconds, and Workers have effectively no cold start.
+# A container that sleeps would miss that window on the first message of the day.
+name = "relay-backend"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "relay"
+database_id = "PUT_YOUR_D1_DATABASE_ID_HERE"
+
+# Secrets are set with `wrangler secret put NAME`, never in this file:
+#   KAKAO_SKILL_TOKEN    shared secret; Kakao does not sign skill requests
+#   KAKAO_REST_KEY       Kakao app REST key
+#   KAKAO_REFRESH_TOKEN  refresh token carrying the talk_message scope
+#   KAKAO_CLIENT_SECRET  optional
+#   GITHUB_TOKEN         fine-grained PAT with actions:write on the repo
+#   ALLOWED_KAKAO_IDS    comma-separated Kakao user ids permitted to run
+
+[vars]
+GITHUB_OWNER = "speddiikga-code"
+GITHUB_REPO  = "relay"
+WORKFLOW_FILE = "cloud-agents.yml"

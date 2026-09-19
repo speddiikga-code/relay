@@ -1,0 +1,10 @@
+{
+  "name": "relay-backend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node test/skill.test.mjs",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  }
+}
