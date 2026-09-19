@@ -982,6 +982,15 @@
     });
     $('#kakao-connect').addEventListener('click', kakaoConnect);
     $('#kakao-disconnect').addEventListener('click', () => { keys.kakaoToken = null; saveKeys(); renderKakaoStatus(); renderStatus(); });
+    // The cloud workflow needs this token as a repository secret, and it was
+    // previously stored but never shown — so the documented setup step could
+    // not actually be carried out.
+    $('#kakao-copy-refresh').addEventListener('click', ev => {
+      const refresh = keys.kakaoToken && keys.kakaoToken.refresh;
+      if (!refresh) { banner('Connect KakaoTalk first — there is no refresh token yet.', 'warn'); return; }
+      copyText(refresh, ev.currentTarget);
+      banner('Refresh token copied. Add it as the KAKAO_REFRESH_TOKEN repository secret (Settings → Secrets and variables → Actions). Treat it like a password.', 'ok');
+    });
     $('#kakao-test').addEventListener('click', async () => {
       const s = $('#st-kakao');
       try { await kakaoSend('👋 Relay is connected to your KakaoTalk. Run results will arrive here.'); s.textContent = 'Test message sent. Check KakaoTalk ("나와의 채팅").'; s.className = 'hint ok'; }

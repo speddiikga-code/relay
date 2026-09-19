@@ -70,8 +70,8 @@ Then **Claude merges** every answer: what each got right or wrong, then the sing
 
 Browser runs already message you through the app. The three `KAKAO_*` secrets add
 the same thing to **cloud** runs, which is the case where it matters: an ultracode
-run takes minutes, so you start it and walk away. To get the refresh token, connect
-KakaoTalk once in the app, then copy it from Settings. Access tokens expire within
+run takes minutes, so you start it and walk away. To get the refresh token: open the
+app → Settings → KakaoTalk → **Connect KakaoTalk**, then press **Copy refresh token**. Access tokens expire within
 hours, so the workflow trades the refresh token for a fresh one on every run; if the
 refresh token itself expires, reconnect in the app and update the secret. Leave these
 unset and the step is skipped silently, like every other optional agent.
