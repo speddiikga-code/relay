@@ -405,8 +405,10 @@ jobs:
 
           # Kakao's text template caps at 200 characters, so send a short
           # summary and let the button carry them to the full answer.
-          # TASK is untrusted text and only ever reaches this through the env,
-          # never through ${{ }} interpolation.
+          # TASK is untrusted text and reaches this only through the env block
+          # above, never through GitHub expression interpolation. (Writing that
+          # interpolation syntax literally here would itself be evaluated: this
+          # is a run: block, not a YAML comment.)
           SUMMARY=$(printf '%s' "$TASK" | tr '\n' ' ' | cut -c1-90)
           STATUS_LINE="Cloud agents finished"
           [ "${JOB_STATUS:-success}" != "success" ] && STATUS_LINE="Cloud agents finished with errors"
